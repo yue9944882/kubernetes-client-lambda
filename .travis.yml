@@ -1,20 +1,32 @@
+sudo: required
 language: go
-
+os: linux
+services:
+  - docker
 go:
   - 1.8
   - 1.9
 
-sudo: required
 
-env:
-- CHANGE_MINIKUBE_NONE_USER=true
+install:
+  - curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+  - mkdir -p .bin; mv ./kubectl .bin/kubectl && chmod +x .bin/kubectl
+  - export PATH="$TRAVIS_BUILD_DIR/.bin:$PATH"
+  - wget https://cdn.rawgit.com/Mirantis/kubeadm-dind-cluster/master/fixed/dind-cluster-v1.7.sh && chmod +x dind-cluster-v1.7.sh && ./dind-cluster-v1.7.sh up
+  - export PATH="$HOME/.kubeadm-dind-cluster:$PATH"
+
 
 before_script:
+# Download kubectl, which is a requirement for using minikube.nd}{end}'; until kubectl get nodes -o jsonpath="$JSONPATH" 2>&1 | grep -q "Ready=True"; do sleep 1; done
 - go get k8s.io/client-go/...
 
 script:
 - go vet .
 - go test -coverprofile=coverage.txt -covermode=atomic
+- kubectl get nodes
+- kubectl create -f https://raw.githubusercontent.com/kubernetes/kubernetes/master/examples/storage/redis/redis-controller.yaml
+- kubectl get rc
+- kubectl get pods
 
 after_success:
 - bash <(curl -s https://codecov.io/bash)
