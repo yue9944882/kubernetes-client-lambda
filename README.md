@@ -99,3 +99,10 @@ And these lambda can be consumed by:
 | Every | no | 3 | Return true if every element when applied lambda returned a `true` | 
 
 Primitive methods like `CreateIfNotExist`, `DeleteIfExist` have no parameter and just consumes all elements at the end of the pipelining. 
+
+### Help & Contact ###
+
+
+ E-mail: yue9944882@gmail.com
+
+
