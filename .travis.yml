@@ -5,7 +5,6 @@ services:
   - docker
 go:
   - 1.8
-  - 1.9
 
 
 install:
@@ -29,7 +28,8 @@ script:
 - kubectl get rc
 - kubectl get pods
 # Integration Test on CI kubernetes cluster
-- go test ./test
+- kubectl run -i --tty golang --image=golang:1.8 --command -- go get github.com/yue9944882/kubernetes-client-lambda
+
 
 after_success:
 - bash <(curl -s https://codecov.io/bash)
