@@ -6,6 +6,9 @@ services:
 go:
   - 1.8
 
+cache:
+  directories:
+  - /var/log/pods/
 
 install:
 - sudo mkdir -p /var/log/pods/
