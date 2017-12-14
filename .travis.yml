@@ -28,7 +28,7 @@ script:
 - kubectl get rc
 - kubectl get pods
 # Integration Test on CI kubernetes cluster
-- kubectl run -i --tty --restart='Never' golang --image=golang:1.8 --command -- go get github.com/yue9944882/kubernetes-client-lambda
+- kubectl run -i --tty --restart='Never' --pod-running-timeout=1h golang --image=golang:1.8 --command -- go get github.com/yue9944882/kubernetes-client-lambda
 
 
 after_success:
