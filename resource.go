@@ -2,9 +2,14 @@ package lambda
 
 import (
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 type Resource string
+
+func init() {
+
+}
 
 const (
 	Namespace   Resource = " Namespace"
@@ -20,7 +25,27 @@ const (
 	StatefulSet Resource = "StatefulSet"
 )
 
-func (rs Resource) Bind(clientset *kubernetes.Clientset) KubernetesClient {
+func (rs Resource) InCluster() KubernetesClient {
+	// creates the in-cluster config
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		panic(err.Error())
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
+	return &kubernetesExecutable{
+		Clientset: clientset,
+		Namespace: "default",
+	}
+}
+
+func (rs Resource) OutOfCluster(config *rest.Config) KubernetesClient {
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err.Error())
+	}
 	return &kubernetesExecutable{
 		Clientset: clientset,
 		Namespace: "default",
