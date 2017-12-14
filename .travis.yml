@@ -2,9 +2,9 @@ sudo: required
 language: go
 os: linux
 services:
-  - docker
+- docker
 go:
-  - 1.8
+- 1.8
 
 cache:
   directories:
@@ -12,6 +12,7 @@ cache:
 
 install:
 - sudo mkdir -p /var/log/pods/
+- sudo chown -R travis:travis /var/log/pods/
 - curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
 - mkdir -p .bin; mv ./kubectl .bin/kubectl && chmod +x .bin/kubectl
 - export PATH="$TRAVIS_BUILD_DIR/.bin:$PATH"
