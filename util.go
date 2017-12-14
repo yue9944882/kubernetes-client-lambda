@@ -9,3 +9,8 @@ func getNameOfResource(kr kubernetesResource) string {
 		reflect.ValueOf(kr),
 	).FieldByName("Name").String()
 }
+
+func isNamedspaced(kr kubernetesResource) bool {
+	_, ok := reflect.Indirect(reflect.ValueOf(kr)).Type().FieldByName("Namespace")
+	return ok
+}

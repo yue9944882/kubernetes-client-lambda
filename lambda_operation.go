@@ -35,8 +35,9 @@ func (lambda *Lambda) CreateIfNotExist() (bool, error) {
 	}
 	created := false
 	for item := range lambda.val {
-		if rs, err := lambda.op.opGetInterface(getNameOfResource(item)); err == nil {
-			if _, err := lambda.op.opCreateInterface(rs); err != nil {
+		if _, err := lambda.op.opGetInterface(getNameOfResource(item)); err != nil {
+			if _, err := lambda.op.opCreateInterface(item); err != nil {
+				fmt.Println(err)
 				lambda.Error = err
 			} else {
 				created = true

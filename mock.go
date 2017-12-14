@@ -11,10 +11,14 @@ type NamedMockResource map[string]MockResource
 type NamespacedMockResource map[string]NamedMockResource
 
 type MockKubernetes struct {
-	rs        Resource
-	data      NamespacedMockResource
-	namespace string
+	namespaceAutoCreate bool
+	rs                  Resource
+	namespace           string
 }
+
+var (
+	mock = make(map[string]NamespacedMockResource)
+)
 
 func (mk *MockKubernetes) InNamespace(namespace string) (l *Lambda) {
 	resources := mk.fetch()
@@ -48,11 +52,22 @@ func (mk *MockKubernetes) All() (l *Lambda) {
 	return
 }
 
+// Putting all resource which doesn't belong to any namespace under "" key
 func (mk *MockKubernetes) fetch() NamedMockResource {
-	if _, exists := mk.data[mk.namespace]; !exists {
-		mk.data[mk.namespace] = make(NamedMockResource)
+	if _, exists := mock[mk.rs.String()]; !exists {
+		mock[mk.rs.String()] = make(NamespacedMockResource)
 	}
-	ns := mk.data[mk.namespace]
+	resourceMock := mock[mk.rs.String()]
+	// HACK: "" namespace is for namespace-not-awared resources
+	if _, exists := resourceMock[""]; !exists {
+		resourceMock[""] = make(NamedMockResource)
+	}
+	if mk.namespaceAutoCreate {
+		if _, exists := resourceMock[mk.namespace]; !exists {
+			resourceMock[mk.namespace] = make(NamedMockResource)
+		}
+	}
+	ns := resourceMock[mk.namespace]
 	return ns
 }
 
@@ -60,6 +75,8 @@ func (mk *MockKubernetes) opCreateInterface(item kubernetesResource) (kubernetes
 	if _, exists := mk.fetch()[getNameOfResource(item)]; exists {
 		return nil, fmt.Errorf("create failed: resource %s already exists", getNameOfResource(item))
 	}
+	fmt.Println("####")
+	fmt.Println(getNameOfResource(item))
 	mk.fetch()[getNameOfResource(item)] = item
 	return item, nil
 }

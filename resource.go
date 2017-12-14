@@ -27,11 +27,11 @@ func (rs Resource) Bind(clientset *kubernetes.Clientset) KubernetesClient {
 	}
 }
 
-func (rs Resource) Mock() KubernetesClient {
+func (rs Resource) Mock(namespaceAutoCreate bool) KubernetesClient {
 	return &MockKubernetes{
-		rs:        rs,
-		namespace: "default",
-		data:      make(NamespacedMockResource),
+		rs:                  rs,
+		namespace:           "",
+		namespaceAutoCreate: namespaceAutoCreate,
 	}
 }
 
