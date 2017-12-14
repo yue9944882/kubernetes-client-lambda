@@ -51,7 +51,7 @@ ReplicaSet.OutOfCluster(rest_config).InNamespace("test").Grep(func(rs *api_ext_v
 
 ### How to Mock Kubernetes Resources? ###
 
-As the following example shown, Calling `Mock()` on Kubernetes Type Enumeration will create the expected mocking resources for you:
+As the following example shown, Calling `Mock(autoCreateNamespace bool)` on Kubernetes Type Enumeration will create the expected mocking resources for you:
 
 ```go
 var rs api_ext_v1.ReplicaSet
