@@ -28,6 +28,8 @@ script:
 - kubectl create -f https://raw.githubusercontent.com/kubernetes/kubernetes/master/examples/storage/redis/redis-controller.yaml
 - kubectl get rc
 - kubectl get pods
+# Integration Test on CI kubernetes cluster
+- go test ./test
 
 after_success:
 - bash <(curl -s https://codecov.io/bash)
