@@ -48,4 +48,10 @@ func TestNamespaceMock(t *testing.T) {
 		}
 	})
 	assert.Equal(t, 1, count, "namespace not created")
+
+	deleted, err := Namespace.Mock(false).All().Grep(func(ns *api_v1.Namespace) bool {
+		return ns.Name == "testns"
+	}).DeleteIfExist()
+	assert.Equal(t, true, deleted, "create success")
+	assert.NoError(t, err, "creation failure")
 }

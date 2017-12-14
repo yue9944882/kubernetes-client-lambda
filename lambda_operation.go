@@ -43,6 +43,23 @@ func (lambda *Lambda) CreateIfNotExist() (bool, error) {
 	return created, lambda.Error
 }
 
+func (lambda *Lambda) DeleteIfExist() (bool, error) {
+	if !lambda.NoError() {
+		return false, lambda.Error
+	}
+	deleted := false
+	for item := range lambda.val {
+		if _, err := lambda.op.opGetInterface(getNameOfResource(item)); err == nil {
+			if err := lambda.op.opDeleteInterface(getNameOfResource(item)); err != nil {
+				lambda.Error = err
+			} else {
+				deleted = true
+			}
+		}
+	}
+	return deleted, lambda.Error
+}
+
 func (lambda *Lambda) Update() (bool, error) {
 	if !lambda.NoError() {
 		return false, lambda.Error
