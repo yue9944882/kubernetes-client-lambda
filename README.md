@@ -42,7 +42,9 @@ ReplicaSet.OutOfCluster(rest_config).InNamespace("test").Grep(func(rs *api_ext_v
 
 ### How to Use it? ###
 
-> go get yue9944882/kubernetes-client-lambda
+```
+go get yue9944882/kubernetes-client-lambda
+```
 
 ### Why Kubernetes Client Lambda is better? ###
 
