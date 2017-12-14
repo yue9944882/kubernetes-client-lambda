@@ -1,6 +1,6 @@
 # Kubernetes Client Lambda #
 
-[![Build Status](https://travis-ci.com/yue9944882/kubernetes-client-lambda.svg?token=pzmnymNtKXSyQJpSi3Kq&branch=master)](https://travis-ci.com/yue9944882/kubernetes-client-lambda)
+[![Build Status](https://travis-ci.org/yue9944882/FreemarkerMail.svg?branch=master)](https://travis-ci.org/yue9944882/FreemarkerMail)
 
 ### What is Kubernetes Client Lambda? ###
 
