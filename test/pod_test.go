@@ -14,6 +14,8 @@ func TestPodCreate(t *testing.T) {
 	success, err := kubernetes.Pod.InCluster().InNamespace(ns).Add(
 		func() *api_v1.Pod {
 			var pod api_v1.Pod
+			pod.APIVersion = "v1"
+			pod.Kind = "Pod"
 			pod.Name = "test1"
 			pod.Namespace = ns
 			pod.Spec.Containers = []api_v1.Container{
