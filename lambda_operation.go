@@ -1,7 +1,5 @@
 package lambda
 
-import "fmt"
-
 func (lambda *Lambda) Exists() (bool, error) {
 	if !lambda.NoError() {
 		return false, lambda.Error
@@ -19,7 +17,6 @@ func (lambda *Lambda) Create() (bool, error) {
 		return false, lambda.Error
 	}
 	allCreated := true
-	fmt.Printf("%#v", lambda)
 	lambda.op.opListInterface()
 	for item := range lambda.val {
 		if _, err := lambda.op.opCreateInterface(item); err != nil {
@@ -37,7 +34,6 @@ func (lambda *Lambda) CreateIfNotExist() (bool, error) {
 	for item := range lambda.val {
 		if _, err := lambda.op.opGetInterface(getNameOfResource(item)); err != nil {
 			if _, err := lambda.op.opCreateInterface(item); err != nil {
-				fmt.Println(err)
 				lambda.Error = err
 			} else {
 				created = true
