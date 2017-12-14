@@ -110,7 +110,7 @@ func (exec *kubernetesExecutable) opListInterface() ([]kubernetesResource, error
 		return nil, errors.New("tainted results from list method")
 	}
 	for i := 0; i < items.Len(); i++ {
-		item := items.Index(i).Interface()
+		item := items.Index(i).Addr().Interface()
 		resources = append(resources, item)
 	}
 	return resources, nil
