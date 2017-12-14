@@ -1,6 +1,6 @@
 # Kubernetes Client Lambda #
 
-[![Build Status](https://travis-ci.org/yue9944882/FreemarkerMail.svg?branch=master)](https://travis-ci.org/yue9944882/FreemarkerMail)
+[![Build Status](https://travis-ci.org/yue9944882/kubernetes-client-lambda.svg?branch=master)](https://travis-ci.org/yue9944882/kubernetes-client-lambda)
 [![codecov](https://codecov.io/gh/yue9944882/kubernetes-client-lambda/branch/master/graph/badge.svg)](https://codecov.io/gh/yue9944882/kubernetes-client-lambda)
 
 ### What is Kubernetes Client Lambda? ###
