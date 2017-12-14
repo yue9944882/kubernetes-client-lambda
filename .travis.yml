@@ -29,7 +29,7 @@ script:
 - kubectl get pods
 # Integration Test on CI kubernetes cluster
 - kubectl run -i --tty --restart='Never' --pod-running-timeout=1h golang --image=golang:1.8 --command -- \
-    bash -c "go get -v github.com/yue9944882/kubernetes-client-lambda && echo yes"
+    bash -c "go get -v github.com/yue9944882/kubernetes-client-lambda && go test github/yue9944882/kubernetes-client-lambda/test"
 
 
 after_success:
