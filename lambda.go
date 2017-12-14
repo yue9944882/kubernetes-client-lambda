@@ -45,6 +45,7 @@ func (lambda *Lambda) Each(fn interface{}) {
 func (lambda *Lambda) First(fn interface{}) *Lambda {
 	ch := make(chan interface{})
 	l := &Lambda{
+		op:  lambda.op,
 		val: ch,
 	}
 	go func() {
@@ -65,6 +66,7 @@ func (lambda *Lambda) First(fn interface{}) *Lambda {
 func (lambda *Lambda) Grep(fn interface{}) *Lambda {
 	ch := make(chan interface{})
 	l := &Lambda{
+		op:  lambda.op,
 		val: ch,
 	}
 	go func() {
@@ -84,6 +86,7 @@ func (lambda *Lambda) Grep(fn interface{}) *Lambda {
 func (lambda *Lambda) Map(fn interface{}) *Lambda {
 	ch := make(chan interface{})
 	l := &Lambda{
+		op:  lambda.op,
 		val: ch,
 	}
 	go func() {
