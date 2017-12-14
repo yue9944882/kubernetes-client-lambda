@@ -75,8 +75,6 @@ func (mk *MockKubernetes) opCreateInterface(item kubernetesResource) (kubernetes
 	if _, exists := mk.fetch()[getNameOfResource(item)]; exists {
 		return nil, fmt.Errorf("create failed: resource %s already exists", getNameOfResource(item))
 	}
-	fmt.Println("####")
-	fmt.Println(getNameOfResource(item))
 	mk.fetch()[getNameOfResource(item)] = item
 	return item, nil
 }
