@@ -102,8 +102,8 @@ func (exec *kubernetesExecutable) opListInterface() ([]kubernetesResource, error
 			reflect.ValueOf(meta_v1.ListOptions{}),
 		})
 	}
-	if err := ret[1].Interface().(error); err != nil {
-		return nil, err
+	if err := ret[1].Interface(); err != nil {
+		return nil, err.(error)
 	}
 	items := ret[0].FieldByName("Items")
 	if reflect.TypeOf(items).Kind() != reflect.Slice {
@@ -122,8 +122,8 @@ func (exec *kubernetesExecutable) opGetInterface(name string) (kubernetesResourc
 		reflect.ValueOf(name),
 		reflect.ValueOf(meta_v1.GetOptions{}),
 	})
-	if err := ret[1].Interface().(error); err != nil {
-		return nil, err
+	if err := ret[1].Interface(); err != nil {
+		return nil, err.(error)
 	}
 	return ret[0].Interface(), nil
 }
@@ -133,8 +133,8 @@ func (exec *kubernetesExecutable) opCreateInterface(item kubernetesResource) (ku
 	ret := method.Call([]reflect.Value{
 		reflect.ValueOf(item),
 	})
-	if err := ret[1].Interface().(error); err != nil {
-		return nil, err
+	if err := ret[1].Interface(); err != nil {
+		return nil, err.(error)
 	}
 	return ret[0].Interface(), nil
 }
@@ -144,8 +144,8 @@ func (exec *kubernetesExecutable) opUpdateInterface(item kubernetesResource) (ku
 	ret := method.Call([]reflect.Value{
 		reflect.ValueOf(item),
 	})
-	if err := ret[1].Interface().(error); err != nil {
-		return nil, err
+	if err := ret[1].Interface(); err != nil {
+		return nil, err.(error)
 	}
 	return ret[0].Interface(), nil
 }
@@ -156,5 +156,8 @@ func (exec *kubernetesExecutable) opDeleteInterface(name string) error {
 		reflect.ValueOf(name),
 		reflect.ValueOf(&meta_v1.DeleteOptions{}),
 	})
-	return ret[0].Interface().(error)
+	if err := ret[1].Interface(); err != nil {
+		return err.(error)
+	}
+	return nil
 }
