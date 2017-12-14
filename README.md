@@ -37,9 +37,11 @@ ReplicaSet.OutOfCluster(rest_config).InNamespace("test").Grep(func(rs *api_ext_v
     rs.Meta.Labels["foo-label1"] = "test" 
     return rs
 }).Update()
-
-
 ```
+
+### How to Use it? ###
+
+> go get yue9944882/kubernetes-client-lambda
 
 ### Why Kubernetes Client Lambda is better? ###
 
