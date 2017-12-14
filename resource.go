@@ -38,6 +38,7 @@ func (rs Resource) InCluster() KubernetesClient {
 	return &kubernetesExecutable{
 		Clientset: clientset,
 		Namespace: "default",
+		Rs:        rs,
 	}
 }
 
