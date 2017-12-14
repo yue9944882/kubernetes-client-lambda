@@ -105,8 +105,8 @@ func (exec *kubernetesExecutable) opListInterface() ([]kubernetesResource, error
 	if err := ret[1].Interface(); err != nil {
 		return nil, err.(error)
 	}
-	items := ret[0].FieldByName("Items")
-	if reflect.TypeOf(items).Kind() != reflect.Slice {
+	items := reflect.Indirect(ret[0]).FieldByName("Items")
+	if items.Type().Kind() != reflect.Slice {
 		return nil, errors.New("tainted results from list method")
 	}
 	for i := 0; i < items.Len(); i++ {
