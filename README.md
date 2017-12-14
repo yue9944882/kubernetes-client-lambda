@@ -17,7 +17,8 @@ With KCL, you can operate kubernetes resources like this example:
 ```go
 // See doc for more info about lambda functions Grep / Map..
 
-ReplicaSet.InNamespace("test").Grep(func(rs *api_ext_v1.ReplicaSet) bool {
+// In-Cluster example
+ReplicaSet.InCluster().InNamespace("test").Grep(func(rs *api_ext_v1.ReplicaSet) bool {
     // Assuming we already have foo-v001, foo-v002, bar-v001 
     return strings.HasPrefix(rs.Name, "foo-")
 }).Map(func(rs *api_ext_v1.ReplicaSet) rs*api_ext_v1.ReplicaSet {
@@ -25,22 +26,37 @@ ReplicaSet.InNamespace("test").Grep(func(rs *api_ext_v1.ReplicaSet) bool {
     rs.Meta.Labels["foo-label1"] = "test" 
     return rs
 }).Update()
+
+
+// Out-Of-Cluster example
+ReplicaSet.OutOfCluster(rest_config).InNamespace("test").Grep(func(rs *api_ext_v1.ReplicaSet) bool {
+    // Assuming we already have foo-v001, foo-v002, bar-v001 
+    return strings.HasPrefix(rs.Name, "foo-")
+}).Map(func(rs *api_ext_v1.ReplicaSet) rs*api_ext_v1.ReplicaSet {
+    // Edit in-place or clone a new one
+    rs.Meta.Labels["foo-label1"] = "test" 
+    return rs
+}).Update()
+
+
 ```
 
 ### Why Kubernetes Client Lambda is better? ###
 
-- Lambda-styled Kubernetes resource manipulating.
+- Manipulating kubernetes resources in one line
+- Lambda-styled kubernetes resource processing.
 - Pipelined and streamlized.
 - Light-weight and only depends on [kubernetes/client-go](https://github.com/kubernetes/client-go)
 - User-friendly mocking kubernetes static interface
 
 ### How to Mock Kubernetes Resources? ###
 
+As the following example shown, Calling `Mock()` on Kubernetes Type Enumeration will create the expected mocking resources for you:
 
-As the following example shown, Calling `Mock()` on Kubernetes Type Enumeration will create the related mocking resources for you:
 ```go
 var rs api_ext_v1.ReplicaSet
-ReplicaSet.Mock().InNamespace("test").Add(
+autoCreateNamespace := false
+ReplicaSet.Mock(autoCreateNamespace).InNamespace("test").Add(
     // An anonymous function simply returns a pointer to kubernetes resource 
     // Returned objects will be added to stream
     func(){
@@ -50,6 +66,7 @@ ReplicaSet.Mock().InNamespace("test").Add(
     },
 ).Create()
 ```
+
 
 Checkout more examples under `example` folder.
 
