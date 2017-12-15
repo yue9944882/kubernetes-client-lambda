@@ -26,10 +26,4 @@ func TestNamespaceOperation(t *testing.T) {
 	assert.Equal(t, true, success, "ns creation failure")
 	assert.NoError(t, err, "Some error")
 
-	success, err = kubernetes.Namespace.OutOfCluster(restconfig).All().Grep(func(ns *api_v1.Namespace) bool {
-		return ns.Name == "new"
-	}).Delete()
-	assert.Equal(t, true, success, "ns deletion failure")
-	assert.NoError(t, err, "Some error")
-
 }
