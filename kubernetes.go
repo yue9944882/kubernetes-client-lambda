@@ -1,21 +1,23 @@
 package lambda
 
 import (
+	"fmt"
 	"reflect"
 
 	"errors"
 
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 )
 
 type kubernetesResource interface{}
 type kubernetesOpInterface interface{}
 
 type kubernetesExecutable struct {
-	Clientset *kubernetes.Clientset
-	Namespace string
-	Rs        Resource
+	restconfig *rest.Config
+	Namespace  string
+	Rs         Resource
 }
 
 type KubernetesClient interface {
@@ -64,36 +66,44 @@ func (exec *kubernetesExecutable) All() (l *Lambda) {
 	return l
 }
 
-func (exec *kubernetesExecutable) opInterface() kubernetesOpInterface {
+func (exec *kubernetesExecutable) opInterface() (kubernetesOpInterface, error) {
+	clientset, err := kubernetes.NewForConfig(exec.restconfig)
+	if err != nil {
+		return nil, err
+	}
 	switch exec.Rs {
 	case Namespace:
-		return exec.Clientset.CoreV1().Namespaces()
+		return clientset.CoreV1().Namespaces(), nil
 	case Pod:
-		return exec.Clientset.CoreV1().Pods(exec.Namespace)
+		return clientset.CoreV1().Pods(exec.Namespace), nil
 	case ConfigMap:
-		return exec.Clientset.CoreV1().ConfigMaps(exec.Namespace)
+		return clientset.CoreV1().ConfigMaps(exec.Namespace), nil
 	case Service:
-		return exec.Clientset.CoreV1().Services(exec.Namespace)
+		return clientset.CoreV1().Services(exec.Namespace), nil
 	case Endpoint:
-		return exec.Clientset.CoreV1().Endpoints(exec.Namespace)
+		return clientset.CoreV1().Endpoints(exec.Namespace), nil
 	case Ingress:
-		return exec.Clientset.ExtensionsV1beta1().Ingresses(exec.Namespace)
+		return clientset.ExtensionsV1beta1().Ingresses(exec.Namespace), nil
 	case ReplicaSet:
-		return exec.Clientset.ExtensionsV1beta1().ReplicaSets(exec.Namespace)
+		return clientset.ExtensionsV1beta1().ReplicaSets(exec.Namespace), nil
 	case Deployment:
-		return exec.Clientset.ExtensionsV1beta1().Deployments(exec.Namespace)
+		return clientset.ExtensionsV1beta1().Deployments(exec.Namespace), nil
 	case DaemonSet:
-		return exec.Clientset.ExtensionsV1beta1().DaemonSets(exec.Namespace)
+		return clientset.ExtensionsV1beta1().DaemonSets(exec.Namespace), nil
 	case StatefulSet:
-		return exec.Clientset.AppsV1beta1().StatefulSets(exec.Namespace)
+		return clientset.AppsV1beta1().StatefulSets(exec.Namespace), nil
 	default:
-		return nil
+		return nil, fmt.Errorf("unknown resource type %s", exec.Rs.String())
 	}
 }
 
 func (exec *kubernetesExecutable) opListInterface() ([]kubernetesResource, error) {
+	op, err := exec.opInterface()
+	if err != nil {
+		return nil, err
+	}
 	var resources []kubernetesResource
-	method := reflect.ValueOf(exec.opInterface()).MethodByName("List")
+	method := reflect.ValueOf(op).MethodByName("List")
 	var ret []reflect.Value
 	if method.Type().NumIn() == 0 {
 		ret = method.Call([]reflect.Value{})
@@ -117,7 +127,11 @@ func (exec *kubernetesExecutable) opListInterface() ([]kubernetesResource, error
 }
 
 func (exec *kubernetesExecutable) opGetInterface(name string) (kubernetesResource, error) {
-	method := reflect.ValueOf(exec.opInterface()).MethodByName("Get")
+	op, err := exec.opInterface()
+	if err != nil {
+		return nil, err
+	}
+	method := reflect.ValueOf(op).MethodByName("Get")
 	ret := method.Call([]reflect.Value{
 		reflect.ValueOf(name),
 		reflect.ValueOf(meta_v1.GetOptions{}),
@@ -129,7 +143,11 @@ func (exec *kubernetesExecutable) opGetInterface(name string) (kubernetesResourc
 }
 
 func (exec *kubernetesExecutable) opCreateInterface(item kubernetesResource) (kubernetesResource, error) {
-	method := reflect.ValueOf(exec.opInterface()).MethodByName("Create")
+	op, err := exec.opInterface()
+	if err != nil {
+		return nil, err
+	}
+	method := reflect.ValueOf(op).MethodByName("Create")
 	ret := method.Call([]reflect.Value{
 		reflect.ValueOf(item),
 	})
@@ -140,7 +158,11 @@ func (exec *kubernetesExecutable) opCreateInterface(item kubernetesResource) (ku
 }
 
 func (exec *kubernetesExecutable) opUpdateInterface(item kubernetesResource) (kubernetesResource, error) {
-	method := reflect.ValueOf(exec.opInterface()).MethodByName("Update")
+	op, err := exec.opInterface()
+	if err != nil {
+		return nil, err
+	}
+	method := reflect.ValueOf(op).MethodByName("Update")
 	ret := method.Call([]reflect.Value{
 		reflect.ValueOf(item),
 	})
@@ -151,7 +173,11 @@ func (exec *kubernetesExecutable) opUpdateInterface(item kubernetesResource) (ku
 }
 
 func (exec *kubernetesExecutable) opDeleteInterface(name string) error {
-	method := reflect.ValueOf(exec.opInterface()).MethodByName("Delete")
+	op, err := exec.opInterface()
+	if err != nil {
+		return err
+	}
+	method := reflect.ValueOf(op).MethodByName("Delete")
 	ret := method.Call([]reflect.Value{
 		reflect.ValueOf(name),
 		reflect.ValueOf(&meta_v1.DeleteOptions{}),

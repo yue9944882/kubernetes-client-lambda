@@ -22,7 +22,7 @@ func TestPodOperation(t *testing.T) {
 			pod.Spec.Containers = []api_v1.Container{
 				api_v1.Container{
 					Name:  "test-container",
-					Image: "alpine:3.6",
+					Image: "nginx",
 				},
 			}
 			return &pod
@@ -30,17 +30,7 @@ func TestPodOperation(t *testing.T) {
 	).CreateIfNotExist()
 	assert.Equal(t, true, success, "failed to create pod")
 	assert.NoError(t, err, "some error happened")
-	success, err = kubernetes.Pod.OutOfCluster(restconfig).InNamespace(ns).Grep(func(pod *api_v1.Pod) bool {
-		return pod.Name == "test1"
-	}).Map(func(pod *api_v1.Pod) *api_v1.Pod {
-		if pod.Labels == nil {
-			pod.Labels = make(map[string]string)
-		}
-		pod.Labels["test"] = "yes"
-		return pod
-	}).UpdateIfExist()
-	assert.Equal(t, true, success, "failed to update pod")
-	assert.NoError(t, err, "some error happened")
+
 	success, err = kubernetes.Pod.OutOfCluster(restconfig).InNamespace(ns).Grep(func(pod *api_v1.Pod) bool {
 		return pod.Name == "test1"
 	}).Delete()

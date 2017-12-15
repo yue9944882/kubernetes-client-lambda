@@ -1,7 +1,6 @@
 package lambda
 
 import (
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
@@ -35,14 +34,10 @@ func (rs Resource) InCluster() KubernetesClient {
 }
 
 func (rs Resource) OutOfCluster(config *rest.Config) KubernetesClient {
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
-	}
 	return &kubernetesExecutable{
-		Clientset: clientset,
-		Namespace: "default",
-		Rs:        rs,
+		restconfig: config,
+		Namespace:  "default",
+		Rs:         rs,
 	}
 }
 
