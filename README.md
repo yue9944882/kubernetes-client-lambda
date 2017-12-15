@@ -98,6 +98,7 @@ First we have following types of lambda function:
 |---|---|----|---|
 | NameEqual | yes | Predicate | Return `true` if resource's name equals |
 | HasAnnotation | yes | Predicate | Return `true` if resource's has the given annotation |
+| HasLabel | yes | Predicate | Return `true` if resource's has the given label |
 
 
 And these lambda can be consumed by following function: 

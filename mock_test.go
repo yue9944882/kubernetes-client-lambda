@@ -10,7 +10,7 @@ import (
 )
 
 func TestSimpleMock(t *testing.T) {
-	ns := "test"
+	ns := "test-ns"
 	mockPod := Pod.Mock(true)
 	var pod api_v1.Pod
 	name := "pod"

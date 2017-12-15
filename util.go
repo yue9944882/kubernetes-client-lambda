@@ -24,20 +24,14 @@ func annotationMap(i interface{}) (map[string]string, error) {
 	case reflect.Map:
 		// Get the value of the provided map
 		v := reflect.ValueOf(i)
-
-		// The "only" way of making a reflect.Type with interface{}
-		it := reflect.TypeOf((*interface{})(nil)).Elem()
-
+		it := reflect.TypeOf("")
 		// Create the map of the specific type. Key type is t.Key(), and element type is it
 		m := reflect.MakeMap(reflect.MapOf(t.Key(), it))
-
 		// Copy values to new map
 		for _, mk := range v.MapKeys() {
 			m.SetMapIndex(mk, v.MapIndex(mk))
 		}
-
 		return m.Interface().(map[string]string), nil
-
 	}
 
 	return nil, errors.New("Unsupported type")

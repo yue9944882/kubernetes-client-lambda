@@ -141,6 +141,21 @@ func (lambda *Lambda) NameEqual(name string) *Lambda {
 
 func (lambda *Lambda) HasAnnotation(key, value string) *Lambda {
 	annotationEqual := func(kr kubernetesResource) bool {
+		annotations := reflect.Indirect(reflect.ValueOf(kr)).FieldByName("Annotations")
+		m, err := annotationMap(annotations.Interface())
+		if err != nil {
+			return false
+		}
+		if aValue, exist := m[key]; exist && aValue == value {
+			return true
+		}
+		return false
+	}
+	return lambda.Grep(annotationEqual)
+}
+
+func (lambda *Lambda) HasLabel(key, value string) *Lambda {
+	annotationEqual := func(kr kubernetesResource) bool {
 		annotations := reflect.Indirect(reflect.ValueOf(kr)).FieldByName("Labels")
 		m, err := annotationMap(annotations.Interface())
 		if err != nil {

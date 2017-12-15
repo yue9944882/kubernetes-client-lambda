@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	api_v1 "k8s.io/api/core/v1"
 )
 
 type simple struct {
@@ -106,4 +107,25 @@ func TestSimpleLambdaEach(t *testing.T) {
 		}
 	})
 	assert.Equal(t, 100, cnt, "more element iterated")
+}
+
+func TestSimpleKRName(t *testing.T) {
+	Pod.Mock(true).InNamespace("test").Add(func() *api_v1.Pod {
+		var pod api_v1.Pod
+		pod.Name = "test1"
+		pod.Annotations = make(map[string]string)
+		pod.Annotations["a1"] = "v1"
+		pod.Labels = make(map[string]string)
+		pod.Labels["l1"] = "b1"
+		return &pod
+	}).Create()
+	exist, err := Pod.Mock(true).InNamespace("test").NameEqual("test1").NotEmpty()
+	assert.Equal(t, true, exist, "name snippet failure")
+	assert.NoError(t, err, "some error")
+	exist, err = Pod.Mock(true).InNamespace("test").HasAnnotation("a1", "v1").NotEmpty()
+	assert.Equal(t, true, exist, "annotation snippet failure")
+	assert.NoError(t, err, "some error")
+	exist, err = Pod.Mock(true).InNamespace("test").HasLabel("l1", "b1").NotEmpty()
+	assert.Equal(t, true, exist, "label snippet failure")
+	assert.NoError(t, err, "some error")
 }

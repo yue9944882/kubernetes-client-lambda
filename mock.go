@@ -21,6 +21,7 @@ var (
 )
 
 func (mk *MockKubernetes) InNamespace(namespace string) (l *Lambda) {
+	mk.namespace = namespace
 	resources := mk.fetch()
 	ch := make(chan kubernetesResource)
 	l = &Lambda{
