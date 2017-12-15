@@ -32,6 +32,7 @@ func (lambda *Lambda) CreateIfNotExist() (bool, error) {
 		return false, lambda.Error
 	}
 	created := false
+	searchHit := false
 	for item := range lambda.val {
 		if _, err := lambda.op.opGetInterface(getNameOfResource(item)); err != nil {
 			if _, err := lambda.op.opCreateInterface(item); err != nil {
@@ -39,9 +40,26 @@ func (lambda *Lambda) CreateIfNotExist() (bool, error) {
 			} else {
 				created = true
 			}
+		} else {
+			searchHit = true
 		}
 	}
-	return created, lambda.Error
+	return searchHit || created, lambda.Error
+}
+
+func (lambda *Lambda) Delete() (bool, error) {
+	if !lambda.NoError() {
+		return false, lambda.Error
+	}
+	deleted := false
+	for item := range lambda.val {
+		if err := lambda.op.opDeleteInterface(getNameOfResource(item)); err != nil {
+			lambda.Error = err
+		} else {
+			deleted = true
+		}
+	}
+	return deleted, lambda.Error
 }
 
 func (lambda *Lambda) DeleteIfExist() (bool, error) {

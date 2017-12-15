@@ -156,7 +156,7 @@ func (exec *kubernetesExecutable) opDeleteInterface(name string) error {
 		reflect.ValueOf(name),
 		reflect.ValueOf(&meta_v1.DeleteOptions{}),
 	})
-	if err := ret[1].Interface(); err != nil {
+	if err := ret[0].Interface(); err != nil {
 		return err.(error)
 	}
 	return nil
