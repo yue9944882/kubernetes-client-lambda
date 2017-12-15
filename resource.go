@@ -50,6 +50,7 @@ func (rs Resource) OutOfCluster(config *rest.Config) KubernetesClient {
 	return &kubernetesExecutable{
 		Clientset: clientset,
 		Namespace: "default",
+		Rs:        rs,
 	}
 }
 
