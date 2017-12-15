@@ -31,15 +31,7 @@ func (rs Resource) InCluster() KubernetesClient {
 	if err != nil {
 		panic(err.Error())
 	}
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		panic(err.Error())
-	}
-	return &kubernetesExecutable{
-		Clientset: clientset,
-		Namespace: "default",
-		Rs:        rs,
-	}
+	return rs.OutOfCluster(config)
 }
 
 func (rs Resource) OutOfCluster(config *rest.Config) KubernetesClient {
