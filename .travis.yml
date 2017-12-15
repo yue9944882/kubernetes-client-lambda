@@ -6,18 +6,15 @@ services:
 go:
 - 1.8
 
-# cache:
-#   directories:
-#  - /var/log/pods/
 
-# install:
-# - sudo mkdir -p /var/log/pods/
-# - sudo chown -R travis:travis /var/log/pods/
-# - curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
-# - mkdir -p .bin; mv ./kubectl .bin/kubectl && chmod +x .bin/kubectl
-# - export PATH="$TRAVIS_BUILD_DIR/.bin:$PATH"
-# - wget https://cdn.rawgit.com/Mirantis/kubeadm-dind-cluster/master/fixed/dind-cluster-v1.7.sh && chmod +x dind-cluster-v1.7.sh && ./dind-cluster-v1.7.sh up
-# - export PATH="$HOME/.kubeadm-dind-cluster:$PATH"
+install:
+ - sudo mkdir -p /var/log/pods/
+ - sudo chown -R travis:travis /var/log/pods/
+ - curl -LO "https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl"
+ - mkdir -p .bin; mv ./kubectl .bin/kubectl && chmod +x .bin/kubectl
+ - export PATH="$TRAVIS_BUILD_DIR/.bin:$PATH"
+ - wget https://cdn.rawgit.com/Mirantis/kubeadm-dind-cluster/master/fixed/dind-cluster-v1.7.sh && chmod +x dind-cluster-v1.7.sh && ./dind-cluster-v1.7.sh up
+ - export PATH="$HOME/.kubeadm-dind-cluster:$PATH"
 
 
 before_script:
@@ -32,10 +29,7 @@ script:
 - kubectl create -f https://raw.githubusercontent.com/kubernetes/kubernetes/master/examples/storage/redis/redis-controller.yaml
 - kubectl get rc
 - kubectl get pods
-# Integration Test on CI kubernetes cluster
-# - kubectl run -i --tty --restart='Never' --pod-running-timeout=1h golang --image=golang:1.8 --command -- \
-#    bash -c "go get github.com/yue9944882/kubernetes-client-lambda && \
-#    go test github/yue9944882/kubernetes-client-lambda/test"
+- go test ./test
 
 
 after_success:
