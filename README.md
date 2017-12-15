@@ -83,26 +83,37 @@ First we have following types of lambda function:
 
 (KR denotes Kubernetes Resources, a pointer to resouce, e.g. *api_v1.Pod, *api_ext_v1.ReplicaSet..)
 
-| Index | Parameter1 | Parameter2 | Parameter3 | Return1 |
-|---|---|---|---|---|
-| 1 | - | - | - | KR |
-| 2 | KR | - | - | KR |
-| 3 | KR | - | - | bool |
-| 4 | KR | - | - | - |
+##### Primitive Lambda #####
 
+| Name | Parameter Type | Return Type |
+|---|---|---|
+| Function | KR | - |
+| Consumer | KR | KR |
+| Predicate | KR | bool |
+| Producer | - | KR |
 
-And these lambda can be consumed by: 
-
+##### Kubernetes Resource Lambda Snippet #####
 
 | Name | Pipelinable | Lambda Type | Description |
 |---|---|----|---|
-| Add | yes | 1 | Add the element returned by lambda into collection |
-| Map | yes | 2 | Add all the elements returned by lambda to a new collection |
-| Grep | yes | 3 | Remove the element from collection if applied lambda returned a `false` |
-| First | yes | 3 | Take only the first element when applied lambda returned a `true` |
-| Each | no | 4 | Apply the lambda to every elements in the collection |
-| Any | no | 3 | Return true if at least one element when applied lambda returned a `true` | 
-| Every | no | 3 | Return true if every element when applied lambda returned a `true` | 
+| NameEqual | yes | Predicate | Return `true` if resource's name equals |
+| HasAnnotation | yes | Predicate | Return `true` if resource's has the given annotation |
+
+
+And these lambda can be consumed by following function: 
+
+
+##### Primitive Function Type #####
+
+| Name | Pipelinable | Lambda Type | Description |
+|---|---|----|---|
+| Add | yes | Producer | Add the element returned by lambda into collection |
+| Map | yes | Consumer | Add all the elements returned by lambda to a new collection |
+| Grep | yes | Predicate | Remove the element from collection if applied lambda returned a `false` |
+| First | yes | Predicate | Take only the first element when applied lambda returned a `true` |
+| Each | no | Function | Apply the lambda to every elements in the collection |
+| Any | no | Predicate | Return true if at least one element when applied lambda returned a `true` | 
+| Every | no | Predicate | Return true if every element when applied lambda returned a `true` | 
 
 
 Primitive methods like `CreateIfNotExist`, `DeleteIfExist` have no parameter and just consumes all elements at the end of the pipelining. 
