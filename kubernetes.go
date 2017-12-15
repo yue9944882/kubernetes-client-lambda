@@ -27,7 +27,7 @@ type KubernetesClient interface {
 
 func (exec *kubernetesExecutable) InNamespace(namespace string) (l *Lambda) {
 	exec.Namespace = namespace
-	ch := make(chan interface{})
+	ch := make(chan kubernetesResource)
 	l = &Lambda{
 		op:  exec,
 		val: ch,
@@ -47,7 +47,7 @@ func (exec *kubernetesExecutable) InNamespace(namespace string) (l *Lambda) {
 }
 
 func (exec *kubernetesExecutable) All() (l *Lambda) {
-	ch := make(chan interface{})
+	ch := make(chan kubernetesResource)
 	l = &Lambda{
 		op:  exec,
 		val: ch,

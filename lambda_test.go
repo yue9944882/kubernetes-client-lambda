@@ -11,7 +11,7 @@ type simple struct {
 }
 
 func simpleLambda() *Lambda {
-	ch := make(chan interface{})
+	ch := make(chan kubernetesResource)
 	lambda := &Lambda{
 		val: ch,
 	}

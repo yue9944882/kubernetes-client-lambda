@@ -22,7 +22,7 @@ var (
 
 func (mk *MockKubernetes) InNamespace(namespace string) (l *Lambda) {
 	resources := mk.fetch()
-	ch := make(chan interface{})
+	ch := make(chan kubernetesResource)
 	l = &Lambda{
 		op:  mk,
 		val: ch,
@@ -38,7 +38,7 @@ func (mk *MockKubernetes) InNamespace(namespace string) (l *Lambda) {
 
 func (mk *MockKubernetes) All() (l *Lambda) {
 	resources := mk.fetch()
-	ch := make(chan interface{})
+	ch := make(chan kubernetesResource)
 	l = &Lambda{
 		op:  mk,
 		val: ch,
