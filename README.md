@@ -103,7 +103,22 @@ And these lambda can be consumed by:
 | Any | no | 3 | Return true if at least one element when applied lambda returned a `true` | 
 | Every | no | 3 | Return true if every element when applied lambda returned a `true` | 
 
+
 Primitive methods like `CreateIfNotExist`, `DeleteIfExist` have no parameter and just consumes all elements at the end of the pipelining. 
+Here are supported primitive kubernetes operation functions below:
+
+
+| Operation | Param | Return1 | Return2 | 
+|---|---|---|---|
+| Create | - | bool(sucess) | lambda error |
+| CreateIfNotExists | - | bool(sucess) | lambda error |
+| Delete | - | bool(sucess) | lambda error |
+| DeleteIfExists | - |  bool(sucess) | lambda error |
+| Update | - |  bool(sucess) | lambda error |
+| UpdateIfExists | - |  bool(sucess) | lambda error |
+
+
+
 
 ### Help & Contact ###
 

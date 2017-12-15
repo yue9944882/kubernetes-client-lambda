@@ -49,7 +49,7 @@ func TestIngressperation(t *testing.T) {
 		}
 		ing.Labels["test"] = "yes"
 		return ing
-	}).Update()
+	}).UpdateIfExist()
 	assert.Equal(t, true, success, "failed to update pod")
 	assert.NoError(t, err, "some error happened")
 	success, err = kubernetes.Ingress.OutOfCluster(restconfig).InNamespace(ns).Grep(func(ing *api_ext_v1.Ingress) bool {

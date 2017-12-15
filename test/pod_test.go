@@ -38,7 +38,7 @@ func TestPodOperation(t *testing.T) {
 		}
 		pod.Labels["test"] = "yes"
 		return pod
-	}).Update()
+	}).UpdateIfExist()
 	assert.Equal(t, true, success, "failed to update pod")
 	assert.NoError(t, err, "some error happened")
 	success, err = kubernetes.Pod.OutOfCluster(restconfig).InNamespace(ns).Grep(func(pod *api_v1.Pod) bool {

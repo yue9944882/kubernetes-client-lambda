@@ -1,6 +1,8 @@
 package lambda
 
-func (lambda *Lambda) Exists() (bool, error) {
+// NotEmpty checks if any element remains in lambda collection
+// Returns true if the lambda collection is not empty and error if upstream lambda fails
+func (lambda *Lambda) NotEmpty() (bool, error) {
 	if !lambda.NoError() {
 		return false, lambda.Error
 	}
@@ -12,6 +14,9 @@ func (lambda *Lambda) Exists() (bool, error) {
 	return false, lambda.Error
 }
 
+// Create creates every element remains in lambda collection
+// Returns true if every element is successfully created and lambda error chain
+// Fails if any element already exists
 func (lambda *Lambda) Create() (bool, error) {
 	if !lambda.NoError() {
 		return false, lambda.Error
@@ -27,6 +32,8 @@ func (lambda *Lambda) Create() (bool, error) {
 	return allCreated, lambda.Error
 }
 
+// CreateIfNotExist creates element in the lambda collection
+// Will not return false if any element fails to be created
 func (lambda *Lambda) CreateIfNotExist() (bool, error) {
 	if !lambda.NoError() {
 		return false, lambda.Error
@@ -47,6 +54,7 @@ func (lambda *Lambda) CreateIfNotExist() (bool, error) {
 	return searchHit || created, lambda.Error
 }
 
+// Delete remove every element in the lambda collection
 func (lambda *Lambda) Delete() (bool, error) {
 	if !lambda.NoError() {
 		return false, lambda.Error
@@ -62,6 +70,7 @@ func (lambda *Lambda) Delete() (bool, error) {
 	return deleted, lambda.Error
 }
 
+// DeleteIfExist delete elements in the lambda collection if it exists
 func (lambda *Lambda) DeleteIfExist() (bool, error) {
 	if !lambda.NoError() {
 		return false, lambda.Error
@@ -79,7 +88,24 @@ func (lambda *Lambda) DeleteIfExist() (bool, error) {
 	return deleted, lambda.Error
 }
 
+// Update updates elements to kuberentes resources
 func (lambda *Lambda) Update() (bool, error) {
+	if !lambda.NoError() {
+		return false, lambda.Error
+	}
+	updated := false
+	for item := range lambda.val {
+		if _, err := lambda.op.opUpdateInterface(item); err != nil {
+			lambda.Error = err
+		} else {
+			updated = true
+		}
+	}
+	return updated, lambda.Error
+}
+
+// UpdateIfExist checks if the element exists and update it value
+func (lambda *Lambda) UpdateIfExist() (bool, error) {
 	if !lambda.NoError() {
 		return false, lambda.Error
 	}
