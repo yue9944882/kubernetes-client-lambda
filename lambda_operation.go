@@ -21,6 +21,7 @@ func (lambda *Lambda) Create() (bool, error) {
 	for item := range lambda.val {
 		if _, err := lambda.op.opCreateInterface(item); err != nil {
 			allCreated = false
+			lambda.Error = err
 		}
 	}
 	return allCreated, lambda.Error
