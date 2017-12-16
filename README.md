@@ -15,6 +15,8 @@ Also, KCL defines more useful primitive operation type beyond those provided, e.
 
 Basically, KCL is implemented by golang `reflect` and golang native facilities. KCL defines various resources provided by kubernetes as enumeratoin which hides some unneccessary details like API-version. Sometimes, managing these details can be painful for kubernetes developers. Meanwhile, I find it costs time when mocking kubernetes resources in static unit test, so KCL provides a very simple mocking for kubernetes resources which is implemented via `map`. 
 
+![detail](image/detail.png)
+
 With KCL, you can operate kubernetes resources like this example:
 
 ```go
