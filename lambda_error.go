@@ -18,13 +18,6 @@ func (lambda *Lambda) MustNoError() *Lambda {
 	return lambda.Dummy()
 }
 
-func (lambda *Lambda) MustNoError() *Lambda {
-	if lambda.Error != nil {
-		panic(lambda.Error)
-	}
-	return lambda.Dummy()
-}
-
 func (lambda *Lambda) NoError() bool {
 	return lambda.Error == nil
 }

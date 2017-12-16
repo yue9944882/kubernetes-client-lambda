@@ -1,5 +1,6 @@
 package lambda
 
+// KubernetesOperation is an wrapper interface for k8s client
 type KubernetesOperation interface {
 	opCreateInterface(kubernetesResource) (kubernetesResource, error)
 	opDeleteInterface(string) error
