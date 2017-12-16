@@ -6,6 +6,7 @@
 
 ### What is Kubernetes Client Lambda? ###
 
+![logo](logo.png)
 
 
 Kubernetes Client Lambda (KCL) is a wrapper library over [kubernetes/client-go](https://github.com/kubernetes/client-go) which provides light-weight lambda-styled streamized kubernetes resource manipulation interface. This project is basically inspired by Groovy style lambda, and is aiming at reducing the coding-overhead when referencing too many struct / interface provided by  [kubernetes/client-go](https://github.com/kubernetes/client-go). The only dependency of this project is [kubernetes/client-go](https://github.com/kubernetes/client-go), so this project can be pure and light-weight for you. Currently KCL only provides support for those common-used resources like Pod / Service.. [Click](https://github.com/yue9944882/kubernetes-client-lambda/blob/cfaa5564df0a4212ef9230be9ddd05a5c7034916/resource.go#L9) to see all the supported resources in KCL. 
@@ -94,11 +95,13 @@ First we have following types of lambda function:
 
 ##### Kubernetes Resource Lambda Snippet #####
 
-| Name | Pipelinable | Lambda Type | Description |
+| Name | Pipelinable | Description |
 |---|---|----|---|
-| NameEqual | yes | Predicate | Return `true` if resource's name equals |
-| HasAnnotation | yes | Predicate | Return `true` if resource's has the given annotation |
-| HasLabel | yes | Predicate | Return `true` if resource's has the given label |
+| NameEqual | yes | Filter out resources if its name mismatches |
+| HasAnnotation | yes | Filter out resources if it doesn't have the annotation |
+| HasAnnotationKey | yes | Filter out resources if it doesn't have the annotation key |
+| HasLabel | yes | Filter out resources if it doesn't have the label |
+| HasLabelKey | yes | Filter out resources if it doesn't have the label key |
 
 
 And these lambda can be consumed by following function: 

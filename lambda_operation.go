@@ -109,9 +109,34 @@ func (lambda *Lambda) UpdateIfExist() (bool, error) {
 	if !lambda.NoError() {
 		return false, lambda.Error
 	}
-	updated := false
+	deleted := false
 	for item := range lambda.val {
-		if rs, err := lambda.op.opGetInterface(getNameOfResource(item)); err == nil {
+		if _, err := lambda.op.opGetInterface(getNameOfResource(item)); err == nil {
+			if err := lambda.op.opDeleteInterface(getNameOfResource(item)); err != nil {
+				lambda.Error = err
+			} else {
+				deleted = true
+			}
+		}
+	}
+	return deleted, lambda.Error
+}
+
+// Sync automatically decides to create / update a resource
+func (lambda *Lambda) Sync() (bool, error) {
+	if !lambda.NoError() {
+		return false, lambda.Error
+	}
+	updated := false
+	created := false
+	for item := range lambda.val {
+		if rs, err := lambda.op.opGetInterface(getNameOfResource(item)); err != nil {
+			if _, err := lambda.op.opCreateInterface(item); err != nil {
+				lambda.Error = err
+			} else {
+				created = true
+			}
+		} else {
 			if _, err := lambda.op.opUpdateInterface(rs); err != nil {
 				lambda.Error = err
 			} else {
@@ -119,5 +144,5 @@ func (lambda *Lambda) UpdateIfExist() (bool, error) {
 			}
 		}
 	}
-	return updated, lambda.Error
+	return updated || created, lambda.Error
 }
