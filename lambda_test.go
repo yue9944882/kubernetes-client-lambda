@@ -135,3 +135,19 @@ func TestSimpleKRName(t *testing.T) {
 	assert.Equal(t, true, exist, "annotation key snippet failure")
 	assert.NoError(t, err, "some error")
 }
+
+func TestDummyLamba(t *testing.T) {
+	Pod.Mock(true).InNamespace("test").Add(func() *api_v1.Pod {
+		var pod api_v1.Pod
+		pod.Name = "default"
+		pod.Annotations = make(map[string]string)
+		pod.Annotations["a1"] = "v1"
+		pod.Labels = make(map[string]string)
+		pod.Labels["l1"] = "b1"
+		return &pod
+	}).Create()
+	exist, err := Pod.Mock(true).InNamespace("test").NameEqual("test1").NotEmpty()
+	assert.Equal(t, true, exist, "name snippet failure")
+	assert.NoError(t, err, "some error")
+
+}
