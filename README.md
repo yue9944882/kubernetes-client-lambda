@@ -100,7 +100,7 @@ First we have following types of lambda function:
 ##### Kubernetes Resource Lambda Snippet #####
 
 | Name | Pipelinable | Description |
-|---|---|----|---|
+|---|---|----|
 | NameEqual | yes | Filter out resources if its name mismatches |
 | HasAnnotation | yes | Filter out resources if it doesn't have the annotation |
 | HasAnnotationKey | yes | Filter out resources if it doesn't have the annotation key |
