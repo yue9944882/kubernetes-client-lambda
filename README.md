@@ -6,7 +6,7 @@
 
 ### What is Kubernetes Client Lambda? ###
 
-![logo](logo.png)
+![logo](image/logo.png)
 
 
 Kubernetes Client Lambda (KCL) is a wrapper library over [kubernetes/client-go](https://github.com/kubernetes/client-go) which provides light-weight lambda-styled streamized kubernetes resource manipulation interface. This project is basically inspired by Groovy style lambda, and is aiming at reducing the coding-overhead when referencing too many struct / interface provided by  [kubernetes/client-go](https://github.com/kubernetes/client-go). The only dependency of this project is [kubernetes/client-go](https://github.com/kubernetes/client-go), so this project can be pure and light-weight for you. Currently KCL only provides support for those common-used resources like Pod / Service.. [Click](https://github.com/yue9944882/kubernetes-client-lambda/blob/cfaa5564df0a4212ef9230be9ddd05a5c7034916/resource.go#L9) to see all the supported resources in KCL. 
@@ -127,11 +127,12 @@ Here are supported primitive kubernetes operation functions below:
 | Operation | Param | Return1 | Return2 | 
 |---|---|---|---|
 | Create | - | bool(sucess) | lambda error |
-| CreateIfNotExists | - | bool(sucess) | lambda error |
+| CreateIfNotExists | - | bool(success) | lambda error |
 | Delete | - | bool(sucess) | lambda error |
-| DeleteIfExists | - |  bool(sucess) | lambda error |
+| DeleteIfExists | - |  bool(success) | lambda error |
 | Update | - |  bool(sucess) | lambda error |
-| UpdateIfExists | - |  bool(sucess) | lambda error |
+| UpdateIfExists | - |  bool(success) | lambda error |
+| UpdateOrCreate | - | bool(success) | lambda error |
 
 
 

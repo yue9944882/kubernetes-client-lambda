@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
 	kubernetes "github.com/yue9944882/kubernetes-client-lambda"
 	api_ext_v1 "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -39,7 +38,7 @@ func TestIngressperation(t *testing.T) {
 			return &ing
 		},
 	).CreateIfNotExist()
-	assert.Equal(t, true, success, "failed to create pod")
+	assert.Equal(t, true, success, "failed to create ing")
 	assert.NoError(t, err, "some error happened")
 	success, err = kubernetes.Ingress.OutOfCluster(restconfig).InNamespace(ns).Grep(func(ing *api_ext_v1.Ingress) bool {
 		return ing.Name == "foo"
@@ -50,11 +49,11 @@ func TestIngressperation(t *testing.T) {
 		ing.Labels["test"] = "yes"
 		return ing
 	}).UpdateIfExist()
-	assert.Equal(t, true, success, "failed to update pod")
+	assert.Equal(t, true, success, "failed to update ing")
 	assert.NoError(t, err, "some error happened")
 	success, err = kubernetes.Ingress.OutOfCluster(restconfig).InNamespace(ns).Grep(func(ing *api_ext_v1.Ingress) bool {
 		return ing.Name == "foo"
 	}).Delete()
-	assert.Equal(t, true, success, "failed to delete pod")
+	assert.Equal(t, true, success, "failed to delete ing")
 	assert.NoError(t, err, "some error happened")
 }
