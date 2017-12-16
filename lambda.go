@@ -154,10 +154,25 @@ func (lambda *Lambda) HasAnnotation(key, value string) *Lambda {
 	return lambda.Grep(annotationEqual)
 }
 
-func (lambda *Lambda) HasLabel(key, value string) *Lambda {
-	annotationEqual := func(kr kubernetesResource) bool {
-		annotations := reflect.Indirect(reflect.ValueOf(kr)).FieldByName("Labels")
+func (lambda *Lambda) HasAnnotationKey(key string) *Lambda {
+	annotationKeyEqual := func(kr kubernetesResource) bool {
+		annotations := reflect.Indirect(reflect.ValueOf(kr)).FieldByName("Annotations")
 		m, err := annotationMap(annotations.Interface())
+		if err != nil {
+			return false
+		}
+		if _, exist := m[key]; exist {
+			return true
+		}
+		return false
+	}
+	return lambda.Grep(annotationKeyEqual)
+}
+
+func (lambda *Lambda) HasLabel(key, value string) *Lambda {
+	labelEqual := func(kr kubernetesResource) bool {
+		labels := reflect.Indirect(reflect.ValueOf(kr)).FieldByName("Labels")
+		m, err := annotationMap(labels.Interface())
 		if err != nil {
 			return false
 		}
@@ -166,5 +181,20 @@ func (lambda *Lambda) HasLabel(key, value string) *Lambda {
 		}
 		return false
 	}
-	return lambda.Grep(annotationEqual)
+	return lambda.Grep(labelEqual)
+}
+
+func (lambda *Lambda) HasLabelKey(key string) *Lambda {
+	labelEqual := func(kr kubernetesResource) bool {
+		labels := reflect.Indirect(reflect.ValueOf(kr)).FieldByName("Labels")
+		m, err := annotationMap(labels.Interface())
+		if err != nil {
+			return false
+		}
+		if _, exist := m[key]; exist {
+			return true
+		}
+		return false
+	}
+	return lambda.Grep(labelEqual)
 }

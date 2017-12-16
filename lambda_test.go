@@ -128,4 +128,10 @@ func TestSimpleKRName(t *testing.T) {
 	exist, err = Pod.Mock(true).InNamespace("test").HasLabel("l1", "b1").NotEmpty()
 	assert.Equal(t, true, exist, "label snippet failure")
 	assert.NoError(t, err, "some error")
+	exist, err = Pod.Mock(true).InNamespace("test").HasAnnotationKey("a1").NotEmpty()
+	assert.Equal(t, true, exist, "annotation key snippet failure")
+	assert.NoError(t, err, "some error")
+	exist, err = Pod.Mock(true).InNamespace("test").HasAnnotationKey("a1").NotEmpty()
+	assert.Equal(t, true, exist, "annotation key snippet failure")
+	assert.NoError(t, err, "some error")
 }
