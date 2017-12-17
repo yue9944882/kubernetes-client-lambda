@@ -24,8 +24,8 @@ before_script:
 
 script:
 - go vet .
-- go test -coverprofile=coverage.txt .
-- go test -coverprofile=coverage.txt ./test
+- go test -race -coverprofile=coverage.txt .
+- go test -race -coverprofile=coverage.txt ./test
 - kubectl get nodes
 - kubectl create -f https://raw.githubusercontent.com/kubernetes/kubernetes/master/examples/storage/redis/redis-controller.yaml
 - kubectl get rc
