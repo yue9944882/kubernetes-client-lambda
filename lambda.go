@@ -50,29 +50,9 @@ func (lambda *Lambda) clone() (*Lambda, chan kubernetesResource) {
 	return l, ch
 }
 
-func (lambda *Lambda) Every(predicate Predicate) bool {
-	for item := range lambda.val {
-		if !callPredicate(predicate, item) {
-			return false
-		}
-	}
-	return true
-}
-
-func (lambda *Lambda) Any(predicate Predicate) bool {
-	for item := range lambda.val {
-		if callPredicate(predicate, item) {
-			return true
-		}
-	}
-	return false
-}
-
-func (lambda *Lambda) Each(function Function) {
-	for item := range lambda.val {
-		callFunction(function, item)
-	}
-}
+//********************************************************
+// Lambda using Predicate
+//********************************************************
 
 func (lambda *Lambda) First(predicate Predicate) *Lambda {
 	l, ch := lambda.clone()
@@ -101,6 +81,10 @@ func (lambda *Lambda) Grep(predicate Predicate) *Lambda {
 	return l
 }
 
+//********************************************************
+// Lambda using Consumer
+//********************************************************
+
 func (lambda *Lambda) Map(consumer Consumer) *Lambda {
 	l, ch := lambda.clone()
 	go func() {
@@ -113,6 +97,26 @@ func (lambda *Lambda) Map(consumer Consumer) *Lambda {
 	}()
 	return l
 }
+
+//********************************************************
+// Lambda using Function
+//********************************************************
+
+func (lambda *Lambda) Iter(function Function) *Lambda {
+	l, ch := lambda.clone()
+	go func() {
+		defer close(ch)
+		for item := range lambda.val {
+			callFunction(function, item)
+			ch <- item
+		}
+	}()
+	return l
+}
+
+//********************************************************
+// Lambda using Producer
+//********************************************************
 
 func (lambda *Lambda) Add(producer Producer) *Lambda {
 	l, ch := lambda.clone()
@@ -130,6 +134,7 @@ func (lambda *Lambda) Add(producer Producer) *Lambda {
 
 //********************************************************
 // Snippet Kubernetes Lambda Functions
+// Utility Lambda Function
 //********************************************************
 
 func (lambda *Lambda) NameEqual(name string) *Lambda {

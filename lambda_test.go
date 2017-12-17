@@ -151,3 +151,24 @@ func TestDummyLamba(t *testing.T) {
 	assert.NoError(t, err, "some error")
 
 }
+
+func TestIterLambda(t *testing.T) {
+	Pod.Mock(true).InNamespace("test").Add(func() *api_v1.Pod {
+		var pod api_v1.Pod
+		pod.Name = "default"
+		pod.Annotations = make(map[string]string)
+		pod.Annotations["a1"] = "v1"
+		pod.Labels = make(map[string]string)
+		pod.Labels["l1"] = "b1"
+		return &pod
+	}).Create()
+	count := 0
+	exist, err := Pod.Mock(true).InNamespace("test").NameEqual("default").Iter(func(pod *api_v1.Pod) {
+		if pod != nil {
+			count++
+		}
+	}).NotEmpty()
+	assert.Equal(t, true, exist, "name snippet failure")
+	assert.Equal(t, 1, count, "count mismatch")
+	assert.NoError(t, err, "some error")
+}

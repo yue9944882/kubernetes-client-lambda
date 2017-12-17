@@ -147,3 +147,27 @@ func (lambda *Lambda) UpdateOrCreate() (bool, error) {
 	}
 	return updated || created, lambda.Error
 }
+
+func (lambda *Lambda) Every(predicate Predicate) bool {
+	for item := range lambda.val {
+		if !callPredicate(predicate, item) {
+			return false
+		}
+	}
+	return true
+}
+
+func (lambda *Lambda) Any(predicate Predicate) bool {
+	for item := range lambda.val {
+		if callPredicate(predicate, item) {
+			return true
+		}
+	}
+	return false
+}
+
+func (lambda *Lambda) Each(function Function) {
+	for item := range lambda.val {
+		callFunction(function, item)
+	}
+}

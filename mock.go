@@ -20,6 +20,18 @@ var (
 	mock = make(map[string]NamespacedMockResource)
 )
 
+func (rs Resource) Mock(namespaceAutoCreate bool) KubernetesClient {
+	return &MockKubernetes{
+		rs:                  rs,
+		namespace:           "",
+		namespaceAutoCreate: namespaceAutoCreate,
+	}
+}
+
+func (rs Resource) MockClear() {
+	mock = make(map[string]NamespacedMockResource)
+}
+
 func (mk *MockKubernetes) InNamespace(namespace string) (l *Lambda) {
 	mk.namespace = namespace
 	resources := mk.fetch()
