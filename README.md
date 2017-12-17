@@ -139,11 +139,3 @@ Here are supported primitive kubernetes operation functions below:
 | UpdateOrCreate | - | bool(success) | lambda error |
 
 
-
-
-### Help & Contact ###
-
-
- E-mail: yue9944882@gmail.com
-
-
