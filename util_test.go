@@ -23,3 +23,11 @@ func TestNamespaced(t *testing.T) {
 	ok := isNamedspaced(&ns)
 	assert.Equal(t, true, ok, "ns has no namespace field")
 }
+
+func TestNilValue(t *testing.T) {
+	str := "foo"
+	var a *string
+	b := &str
+	assert.Equal(t, true, isZeroOfUnderlyingType(a), "nil value detection failed")
+	assert.Equal(t, false, isZeroOfUnderlyingType(b), "nil value detection failed")
+}
