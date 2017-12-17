@@ -32,7 +32,7 @@ func init() {
 }
 
 const (
-	Namespace             Resource = " Namespace"
+	Namespace             Resource = "Namespace"
 	StorageClass          Resource = "StorageClass"
 	Node                  Resource = "Node"
 	Pod                   Resource = "Pod"
