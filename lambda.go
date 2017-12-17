@@ -3,6 +3,7 @@ package lambda
 import (
 	"fmt"
 	"reflect"
+	"strings"
 )
 
 // Predicate is a function has only one parameter and return boolean.
@@ -182,6 +183,29 @@ func (lambda *Lambda) NameEqual(name string) *Lambda {
 		return reflect.Indirect(reflect.ValueOf(kr)).FieldByName("Name").String() == name
 	}
 	return lambda.Grep(nameEqual)
+}
+
+// NamePrefix filter the elements out if its name doesn't have the prefix
+func (lambda *Lambda) NamePrefix(prefix string) *Lambda {
+	namePrefix := func(kr kubernetesResource) bool {
+		name := reflect.Indirect(reflect.ValueOf(kr)).FieldByName("Name").String()
+		return strings.HasPrefix(name, prefix)
+	}
+	return lambda.Grep(namePrefix)
+}
+
+// NameRegex filter the elements out if its name fails to matches the regexp
+func (lambda *Lambda) NameRegex(regex string) *Lambda {
+	nameRegex := func(kr kubernetesResource) bool {
+		name := reflect.Indirect(reflect.ValueOf(kr)).FieldByName("Name").String()
+		matched, err := regexMatch(name, regex)
+		if err != nil {
+			lambda.Error = err
+			return false
+		}
+		return matched
+	}
+	return lambda.Grep(nameRegex)
 }
 
 // HasAnnotation filter the elements out if it doesn't have the arugument annotation

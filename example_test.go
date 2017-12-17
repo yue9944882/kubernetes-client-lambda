@@ -1,4 +1,4 @@
-package example
+package lambda_test
 
 import (
 	"flag"
@@ -11,7 +11,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-func out_of_cluster() {
+func ExampleOutOfCluster() {
 	var kubeconfig *string
 	if home := homeDir(); home != "" {
 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
@@ -27,7 +27,17 @@ func out_of_cluster() {
 	}
 
 	count := 0
-	kubernetes.Pod.OutOfCluster(config).InNamespace("devops").Each(func(pod *api_v1.Pod) {
+	kubernetes.Pod.OutOfCluster(config).InNamespace("devops").NameEqual("test-pod").Each(
+		func(pod *api_v1.Pod) {
+			count++
+		},
+	)
+	fmt.Println(count)
+}
+
+func ExampleInCluster() {
+	count := 0
+	kubernetes.Pod.InCluster().InNamespace("devops").Each(func(pod *api_v1.Pod) {
 		count++
 		fmt.Println(pod.Name)
 	})

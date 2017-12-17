@@ -3,6 +3,7 @@ package lambda
 import (
 	"errors"
 	"reflect"
+	"regexp"
 )
 
 func getNameOfResource(kr kubernetesResource) string {
@@ -39,4 +40,12 @@ func annotationMap(i interface{}) (map[string]string, error) {
 
 func isZeroOfUnderlyingType(x interface{}) bool {
 	return reflect.DeepEqual(x, reflect.Zero(reflect.TypeOf(x)).Interface())
+}
+
+func regexMatch(str, regex string) (bool, error) {
+	r, err := regexp.Compile(regex)
+	if err != nil {
+		return false, err
+	}
+	return r.MatchString(str), nil
 }

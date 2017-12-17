@@ -37,14 +37,11 @@ ReplicaSet.InCluster().InNamespace("test").Grep(func(rs *api_ext_v1.ReplicaSet) 
 
 
 // Out-Of-Cluster example
-ReplicaSet.OutOfCluster(rest_config).InNamespace("test").Grep(func(rs *api_ext_v1.ReplicaSet) bool {
-    // Assuming we already have foo-v001, foo-v002, bar-v001 
-    return strings.HasPrefix(rs.Name, "foo-")
-}).Map(func(rs *api_ext_v1.ReplicaSet) rs*api_ext_v1.ReplicaSet {
-    // Edit in-place or clone a new one
-    rs.Meta.Labels["foo-label1"] = "test" 
-    return rs
-}).Update()
+kubernetes.Pod.OutOfCluster(config).InNamespace("devops").NameEqual("test-pod").Each(
+    func(pod *api_v1.Pod) {
+        count++
+    },
+)
 ```
 
 ### How to Use it? ###
@@ -103,6 +100,8 @@ First we have following types of lambda function:
 | Name | Pipelinable | Description |
 |---|---|----|
 | NameEqual | yes | Filter out resources if its name mismatches |
+| NamePrefix | yes | Filter out resources if its name doesn't have the prefix |
+| NameRegex | yes | Filter out resources if its name doesn't match the regular expression |
 | HasAnnotation | yes | Filter out resources if it doesn't have the annotation |
 | HasAnnotationKey | yes | Filter out resources if it doesn't have the annotation key |
 | HasLabel | yes | Filter out resources if it doesn't have the label |
