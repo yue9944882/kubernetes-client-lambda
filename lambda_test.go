@@ -29,60 +29,60 @@ func simpleLambda() *Lambda {
 
 func TestSimpleLambdaAny(t *testing.T) {
 	lambda := simpleLambda()
-	any := lambda.Any(func(s *simple) bool {
+	any, err := lambda.Any(func(s *simple) bool {
 		return s.v == 50
 	})
 	assert.Equal(t, true, any, "given v doesn't exists")
-	assert.NoError(t, lambda.Error, "fail to apply lambda")
+	assert.NoError(t, err, "fail to apply lambda")
 }
 
 func TestSimpleLambdaEvery(t *testing.T) {
 	lambda := simpleLambda()
-	every := lambda.Every(func(s *simple) bool {
+	every, err := lambda.Every(func(s *simple) bool {
 		return s.v >= 0
 	})
 	assert.Equal(t, true, every, "given v tainted")
-	assert.NoError(t, lambda.Error, "fail to apply lambda")
+	assert.NoError(t, err, "fail to apply lambda")
 }
 
 func TestSimpleLambdaMap(t *testing.T) {
 	lambda := simpleLambda()
-	mapped := lambda.Map(func(s *simple) *simple {
+	mapped, err := lambda.Map(func(s *simple) *simple {
 		m := &simple{}
 		return m
 	}).Every(func(s *simple) bool {
 		return s.v == 0
 	})
 	assert.Equal(t, true, mapped, "given v mapping failure")
-	assert.NoErrorf(t, lambda.Error, "fail to apply lambda")
+	assert.NoErrorf(t, err, "fail to apply lambda")
 }
 
 func TestSimpleLambdaFirst(t *testing.T) {
 	lambda := simpleLambda()
-	ok := lambda.First(func(s *simple) bool {
+	ok, err := lambda.First(func(s *simple) bool {
 		return s.v > 0 && s.v%33 == 0
 	}).Every(func(s *simple) bool {
 		return s.v == 33
 	})
 	assert.Equal(t, true, ok, "given v first failure")
-	assert.NoErrorf(t, lambda.Error, "fail to apply lambda")
+	assert.NoErrorf(t, err, "fail to apply lambda")
 }
 
 func TestSimpleLambdaGrep(t *testing.T) {
 	lambda := simpleLambda()
-	ok := lambda.Grep(func(s *simple) bool {
+	ok, err := lambda.Grep(func(s *simple) bool {
 		return s.v%3 == 0
 	}).Every(func(s *simple) bool {
 		return s.v%3 == 0
 	})
 	assert.Equal(t, true, ok, "given v grep failure")
-	assert.NoErrorf(t, lambda.Error, "fail to apply lambda")
+	assert.NoErrorf(t, err, "fail to apply lambda")
 }
 
 func TestSimpleLambdaAdd(t *testing.T) {
 	lambda := simpleLambda()
 	cnt := 0
-	ok := lambda.Add(func() *simple {
+	ok, err := lambda.Add(func() *simple {
 		return &simple{
 			v: -1,
 		}
@@ -94,7 +94,7 @@ func TestSimpleLambdaAdd(t *testing.T) {
 		return false
 	})
 	assert.Equal(t, true, ok, "given v prepend failure")
-	assert.NoErrorf(t, lambda.Error, "fail to apply lambda")
+	assert.NoErrorf(t, err, "fail to apply lambda")
 	assert.Equal(t, 1, cnt, "more than element added")
 }
 

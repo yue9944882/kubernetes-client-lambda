@@ -111,7 +111,7 @@ First we have following types of lambda function:
 And these lambda can be consumed by following function: 
 
 
-##### Primitive Function Type #####
+##### Primitive Pipeline Type #####
 
 | Name | Pipelinable | Lambda Type | Description |
 |---|---|----|---|
@@ -119,14 +119,22 @@ And these lambda can be consumed by following function:
 | Map | yes | Consumer | Add all the elements returned by lambda to a new collection |
 | Grep | yes | Predicate | Remove the element from collection if applied lambda returned a `false` |
 | First | yes | Predicate | Take only the first element when applied lambda returned a `true` |
-| Each | no | Function | Apply the lambda to every elements in the collection |
-| Any | no | Predicate | Return true if at least one element when applied lambda returned a `true` | 
-| Every | no | Predicate | Return true if every element when applied lambda returned a `true` | 
+| Iter | no | Function | Apply the lambda to every elements in the collection |
 
 
 Primitive methods like `CreateIfNotExist`, `DeleteIfExist` have no parameter and just consumes all elements at the end of the pipelining. 
 Here are supported primitive kubernetes operation functions below:
 
+##### Basic Operation #####
+
+| Operation | Param | Return1 | Return2 | 
+|---|---|---|---|
+| Each | Function | lambda error | - |
+| Any | Predicate | bool | lambda error |
+| Every | Predicate | bool | lambda error |
+| NotEmpty | - | bool | lambda error |
+
+##### Kubernetes Operation #####
 
 | Operation | Param | Return1 | Return2 | 
 |---|---|---|---|

@@ -1,6 +1,10 @@
 package lambda
 
-// NotEmpty checks if any element remains in lambda collection
+//********************************************************
+// Basic Operation
+//********************************************************
+
+// NotEmpty checks if any element remains
 // Returns true if the lambda collection is not empty and error if upstream lambda fails
 func (lambda *Lambda) NotEmpty() (bool, error) {
 	if !lambda.NoError() {
@@ -13,6 +17,47 @@ func (lambda *Lambda) NotEmpty() (bool, error) {
 	}
 	return false, lambda.Error
 }
+
+// Every checks if every element get a true from predicate
+func (lambda *Lambda) Every(predicate Predicate) (bool, error) {
+	if !lambda.NoError() {
+		return false, lambda.Error
+	}
+	for item := range lambda.val {
+		if !callPredicate(predicate, item) {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// Any checks if any element get a true from predicate
+func (lambda *Lambda) Any(predicate Predicate) (bool, error) {
+	if !lambda.NoError() {
+		return false, lambda.Error
+	}
+	for item := range lambda.val {
+		if callPredicate(predicate, item) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// Each applies function to every element
+func (lambda *Lambda) Each(function Function) error {
+	if !lambda.NoError() {
+		return lambda.Error
+	}
+	for item := range lambda.val {
+		callFunction(function, item)
+	}
+	return nil
+}
+
+//********************************************************
+// Kubernetes Operation
+//********************************************************
 
 // Create creates every element remains in lambda collection
 // Returns true if every element is successfully created and lambda error chain
@@ -146,28 +191,4 @@ func (lambda *Lambda) UpdateOrCreate() (bool, error) {
 		}
 	}
 	return updated || created, lambda.Error
-}
-
-func (lambda *Lambda) Every(predicate Predicate) bool {
-	for item := range lambda.val {
-		if !callPredicate(predicate, item) {
-			return false
-		}
-	}
-	return true
-}
-
-func (lambda *Lambda) Any(predicate Predicate) bool {
-	for item := range lambda.val {
-		if callPredicate(predicate, item) {
-			return true
-		}
-	}
-	return false
-}
-
-func (lambda *Lambda) Each(function Function) {
-	for item := range lambda.val {
-		callFunction(function, item)
-	}
 }
