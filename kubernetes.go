@@ -32,17 +32,20 @@ func init() {
 }
 
 const (
-	Namespace   Resource = " Namespace"
-	Pod         Resource = "Pod"
-	ReplicaSet  Resource = "ReplicaSet"
-	Deployment  Resource = "Deployment"
-	ConfigMap   Resource = "ConfigMap"
-	Ingress     Resource = "Ingress"
-	Service     Resource = "Service"
-	Endpoint    Resource = "Endpoint"
-	Secret      Resource = "Secret"
-	DaemonSet   Resource = "DaemonSet"
-	StatefulSet Resource = "StatefulSet"
+	Namespace             Resource = " Namespace"
+	StorageClass          Resource = "StorageClass"
+	Node                  Resource = "Node"
+	Pod                   Resource = "Pod"
+	ReplicaSet            Resource = "ReplicaSet"
+	ReplicationController Resource = "ReplicationController"
+	Deployment            Resource = "Deployment"
+	ConfigMap             Resource = "ConfigMap"
+	Ingress               Resource = "Ingress"
+	Service               Resource = "Service"
+	Endpoint              Resource = "Endpoint"
+	Secret                Resource = "Secret"
+	DaemonSet             Resource = "DaemonSet"
+	StatefulSet           Resource = "StatefulSet"
 )
 
 func (rs Resource) InCluster() KubernetesClient {
@@ -113,8 +116,16 @@ func (exec *kubernetesExecutable) opInterface() (kubernetesOpInterface, error) {
 		return nil, err
 	}
 	switch exec.Rs {
+
+	// Resource not in any namespace
 	case Namespace:
 		return clientset.CoreV1().Namespaces(), nil
+	case Node:
+		return clientset.CoreV1().Nodes(), nil
+	case StorageClass:
+		return clientset.StorageV1().StorageClasses(), nil
+
+	// Resource in a namespace
 	case Pod:
 		return clientset.CoreV1().Pods(exec.Namespace), nil
 	case ConfigMap:
@@ -133,6 +144,8 @@ func (exec *kubernetesExecutable) opInterface() (kubernetesOpInterface, error) {
 		return clientset.ExtensionsV1beta1().DaemonSets(exec.Namespace), nil
 	case StatefulSet:
 		return clientset.AppsV1beta1().StatefulSets(exec.Namespace), nil
+	case ReplicationController:
+		return clientset.CoreV1().ReplicationControllers(exec.Namespace), nil
 	default:
 		return nil, fmt.Errorf("unknown resource type %s", exec.Rs.String())
 	}

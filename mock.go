@@ -2,6 +2,7 @@ package lambda
 
 import (
 	"fmt"
+	"sync"
 )
 
 type MockResource interface{}
@@ -17,9 +18,12 @@ type MockKubernetes struct {
 }
 
 var (
-	mock = make(map[string]NamespacedMockResource)
+	mock   = make(map[string]NamespacedMockResource)
+	rwLock sync.RWMutex
 )
 
+// Mock return a mock interface of lambda KubernetesClient
+// the mock KubernetesClient is statusful and if you want to reset its status then use MockReset
 func (rs Resource) Mock(namespaceAutoCreate bool) KubernetesClient {
 	return &MockKubernetes{
 		rs:                  rs,
@@ -28,10 +32,15 @@ func (rs Resource) Mock(namespaceAutoCreate bool) KubernetesClient {
 	}
 }
 
-func (rs Resource) MockClear() {
+// MockReset cleans previous data created by Mock
+func (rs Resource) MockReset() {
+	rwLock.Lock()
+	defer rwLock.Unlock()
 	mock = make(map[string]NamespacedMockResource)
 }
 
+// InNamespace fetch all the resources in the namespace and put then into lambda collection
+// This method is always at the beginning of lambda pipelining
 func (mk *MockKubernetes) InNamespace(namespace string) (l *Lambda) {
 	mk.namespace = namespace
 	resources := mk.fetch()
@@ -49,6 +58,9 @@ func (mk *MockKubernetes) InNamespace(namespace string) (l *Lambda) {
 	return
 }
 
+// All fetch all the resources
+// This method should be used to fetch resource doesn't belong to any namespace
+// Such as Namespace / Node / StorageClass
 func (mk *MockKubernetes) All() (l *Lambda) {
 	resources := mk.fetch()
 	ch := make(chan kubernetesResource)
@@ -85,6 +97,8 @@ func (mk *MockKubernetes) fetch() NamedMockResource {
 }
 
 func (mk *MockKubernetes) opCreateInterface(item kubernetesResource) (kubernetesResource, error) {
+	rwLock.Lock()
+	defer rwLock.Unlock()
 	if _, exists := mk.fetch()[getNameOfResource(item)]; exists {
 		return nil, fmt.Errorf("create failed: resource %s already exists", getNameOfResource(item))
 	}
@@ -93,6 +107,8 @@ func (mk *MockKubernetes) opCreateInterface(item kubernetesResource) (kubernetes
 }
 
 func (mk *MockKubernetes) opDeleteInterface(name string) error {
+	rwLock.Lock()
+	defer rwLock.Unlock()
 	if _, exists := mk.fetch()[name]; !exists {
 		return fmt.Errorf("delete failed: resource %s doesn't exists", name)
 	}
@@ -101,6 +117,8 @@ func (mk *MockKubernetes) opDeleteInterface(name string) error {
 }
 
 func (mk *MockKubernetes) opUpdateInterface(item kubernetesResource) (kubernetesResource, error) {
+	rwLock.Lock()
+	defer rwLock.Unlock()
 	if _, exists := mk.fetch()[getNameOfResource(item)]; !exists {
 		return nil, fmt.Errorf("update failed: resource %s doesn't exists", getNameOfResource(item))
 	}
@@ -109,6 +127,8 @@ func (mk *MockKubernetes) opUpdateInterface(item kubernetesResource) (kubernetes
 }
 
 func (mk *MockKubernetes) opGetInterface(name string) (kubernetesResource, error) {
+	rwLock.RLock()
+	defer rwLock.RUnlock()
 	if rs, exists := mk.fetch()[name]; !exists {
 		return nil, fmt.Errorf("get failed: resource %s doesn't exists", name)
 	} else {
@@ -117,6 +137,8 @@ func (mk *MockKubernetes) opGetInterface(name string) (kubernetesResource, error
 }
 
 func (mk *MockKubernetes) opListInterface() ([]kubernetesResource, error) {
+	rwLock.RLock()
+	defer rwLock.RUnlock()
 	var items []kubernetesResource
 	for _, v := range mk.fetch() {
 		items = append(items, v)
