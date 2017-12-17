@@ -50,6 +50,8 @@ func (mk *MockKubernetes) InNamespace(namespace string) (l *Lambda) {
 		val: ch,
 	}
 	go func() {
+		rwLock.RLock()
+		defer rwLock.RUnlock()
 		for _, resource := range resources {
 			ch <- resource
 		}
@@ -69,6 +71,8 @@ func (mk *MockKubernetes) All() (l *Lambda) {
 		val: ch,
 	}
 	go func() {
+		rwLock.RLock()
+		defer rwLock.RUnlock()
 		for _, resource := range resources {
 			ch <- resource
 		}
@@ -97,11 +101,11 @@ func (mk *MockKubernetes) fetch() NamedMockResource {
 }
 
 func (mk *MockKubernetes) opCreateInterface(item kubernetesResource) (kubernetesResource, error) {
-	rwLock.Lock()
-	defer rwLock.Unlock()
 	if _, exists := mk.fetch()[getNameOfResource(item)]; exists {
 		return nil, fmt.Errorf("create failed: resource %s already exists", getNameOfResource(item))
 	}
+	rwLock.Lock()
+	defer rwLock.Unlock()
 	mk.fetch()[getNameOfResource(item)] = item
 	return item, nil
 }

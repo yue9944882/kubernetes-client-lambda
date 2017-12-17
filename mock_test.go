@@ -12,12 +12,12 @@ import (
 func TestSimpleMock(t *testing.T) {
 	ns := "test-ns"
 	mockPod := Pod.Mock(true)
-	var pod api_v1.Pod
-	name := "pod"
-	pod.Namespace = ns
 	// Add 10 pods
 	for i := 0; i < 10; i++ {
 		mockPod.InNamespace(ns).Add(func() *api_v1.Pod {
+			var pod api_v1.Pod
+			name := "pod"
+			pod.Namespace = ns
 			pod.Name = name + strconv.Itoa(i)
 			return &pod
 		}).Create()
