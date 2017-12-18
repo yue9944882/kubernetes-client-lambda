@@ -24,12 +24,10 @@ With KCL, you can operate kubernetes resources like this example:
 
 ```go
 // See doc for more info about lambda functions Grep / Map..
+import kubernetes "github.com/yue9944882/kubernetes-client-lambda"
 
 // In-Cluster example
-ReplicaSet.InCluster().InNamespace("test").Grep(func(rs *api_ext_v1.ReplicaSet) bool {
-    // Assuming we already have foo-v001, foo-v002, bar-v001 
-    return strings.HasPrefix(rs.Name, "foo-")
-}).Map(func(rs *api_ext_v1.ReplicaSet) rs*api_ext_v1.ReplicaSet {
+kubernetes.ReplicaSet.InCluster().InNamespace("test").NameEqual("foo-").Map(func(rs *api_ext_v1.ReplicaSet) rs*api_ext_v1.ReplicaSet {
     // Edit in-place or clone a new one
     rs.Meta.Labels["foo-label1"] = "test" 
     return rs
