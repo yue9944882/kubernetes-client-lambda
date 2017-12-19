@@ -58,12 +58,11 @@ go get github.com/yue9944882/kubernetes-client-lambda
 
 ### How to Mock Kubernetes Resources? ###
 
-As the following example shown, Calling `Mock(autoCreateNamespace bool)` on Kubernetes Type Enumeration will create the expected mocking resources for you:
+As the following example shown, Calling `Mock()` on Kubernetes Type Enumeration will create the expected mocking resources for you:
 
 ```go
 var rs api_ext_v1.ReplicaSet
-autoCreateNamespace := false
-ReplicaSet.Mock(autoCreateNamespace).InNamespace("test").Add(
+ReplicaSet.Mock().InNamespace("test").Add(
     // An anonymous function simply returns a pointer to kubernetes resource 
     // Returned objects will be added to stream
     func(){
