@@ -11,7 +11,7 @@ import (
 
 func TestSimpleMock(t *testing.T) {
 	ns := "test-ns"
-	mockPod := Pod.Mock(true)
+	mockPod := Pod.Mock()
 	// Add 10 pods
 	for i := 0; i < 10; i++ {
 		mockPod.InNamespace(ns).Add(func() *api_v1.Pod {
@@ -32,7 +32,7 @@ func TestSimpleMock(t *testing.T) {
 }
 
 func TestNamespaceMock(t *testing.T) {
-	success, err := Namespace.Mock(false).All().Add(func() *api_v1.Namespace {
+	success, err := Namespace.Mock().All().Add(func() *api_v1.Namespace {
 		var ns api_v1.Namespace
 		ns.Name = "testns"
 		return &ns
@@ -42,14 +42,14 @@ func TestNamespaceMock(t *testing.T) {
 	assert.NoError(t, err, "creation failure")
 
 	count := 0
-	Namespace.Mock(false).All().Each(func(ns *api_v1.Namespace) {
+	Namespace.Mock().All().Each(func(ns *api_v1.Namespace) {
 		if ns != nil {
 			count++
 		}
 	})
-	assert.Equal(t, 1, count, "namespace not created")
+	assert.Equal(t, 2, count, "namespace not created")
 
-	deleted, err := Namespace.Mock(false).All().Grep(func(ns *api_v1.Namespace) bool {
+	deleted, err := Namespace.Mock().All().Grep(func(ns *api_v1.Namespace) bool {
 		return ns.Name == "testns"
 	}).DeleteIfExist()
 	assert.Equal(t, true, deleted, "create success")

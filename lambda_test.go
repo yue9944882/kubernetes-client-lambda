@@ -110,7 +110,7 @@ func TestSimpleLambdaEach(t *testing.T) {
 }
 
 func TestSimpleKRName(t *testing.T) {
-	Pod.Mock(true).InNamespace("test").Add(func() *api_v1.Pod {
+	Pod.Mock().InNamespace("test").Add(func() *api_v1.Pod {
 		var pod api_v1.Pod
 		pod.Name = "test1"
 		pod.Annotations = make(map[string]string)
@@ -119,25 +119,25 @@ func TestSimpleKRName(t *testing.T) {
 		pod.Labels["l1"] = "b1"
 		return &pod
 	}).Create()
-	exist, err := Pod.Mock(true).InNamespace("test").NameEqual("test1").NotEmpty()
+	exist, err := Pod.Mock().InNamespace("test").NameEqual("test1").NotEmpty()
 	assert.Equal(t, true, exist, "name snippet failure")
 	assert.NoError(t, err, "some error")
-	exist, err = Pod.Mock(true).InNamespace("test").HasAnnotation("a1", "v1").NotEmpty()
+	exist, err = Pod.Mock().InNamespace("test").HasAnnotation("a1", "v1").NotEmpty()
 	assert.Equal(t, true, exist, "annotation snippet failure")
 	assert.NoError(t, err, "some error")
-	exist, err = Pod.Mock(true).InNamespace("test").HasLabel("l1", "b1").NotEmpty()
+	exist, err = Pod.Mock().InNamespace("test").HasLabel("l1", "b1").NotEmpty()
 	assert.Equal(t, true, exist, "label snippet failure")
 	assert.NoError(t, err, "some error")
-	exist, err = Pod.Mock(true).InNamespace("test").HasAnnotationKey("a1").NotEmpty()
+	exist, err = Pod.Mock().InNamespace("test").HasAnnotationKey("a1").NotEmpty()
 	assert.Equal(t, true, exist, "annotation key snippet failure")
 	assert.NoError(t, err, "some error")
-	exist, err = Pod.Mock(true).InNamespace("test").HasAnnotationKey("a1").NotEmpty()
+	exist, err = Pod.Mock().InNamespace("test").HasAnnotationKey("a1").NotEmpty()
 	assert.Equal(t, true, exist, "annotation key snippet failure")
 	assert.NoError(t, err, "some error")
 }
 
 func TestDummyLamba(t *testing.T) {
-	Pod.Mock(true).InNamespace("test").Add(func() *api_v1.Pod {
+	Pod.Mock().InNamespace("test").Add(func() *api_v1.Pod {
 		var pod api_v1.Pod
 		pod.Name = "default"
 		pod.Annotations = make(map[string]string)
@@ -146,14 +146,14 @@ func TestDummyLamba(t *testing.T) {
 		pod.Labels["l1"] = "b1"
 		return &pod
 	}).Create()
-	exist, err := Pod.Mock(true).InNamespace("test").NameEqual("test1").NotEmpty()
+	exist, err := Pod.Mock().InNamespace("test").NameEqual("test1").NotEmpty()
 	assert.Equal(t, true, exist, "name snippet failure")
 	assert.NoError(t, err, "some error")
 
 }
 
 func TestIterLambda(t *testing.T) {
-	Pod.Mock(true).InNamespace("test").Add(func() *api_v1.Pod {
+	Pod.Mock().InNamespace("test").Add(func() *api_v1.Pod {
 		var pod api_v1.Pod
 		pod.Name = "default"
 		pod.Annotations = make(map[string]string)
@@ -163,7 +163,7 @@ func TestIterLambda(t *testing.T) {
 		return &pod
 	}).Create()
 	count := 0
-	exist, err := Pod.Mock(true).InNamespace("test").NameEqual("default").Iter(func(pod *api_v1.Pod) {
+	exist, err := Pod.Mock().InNamespace("test").NameEqual("default").Iter(func(pod *api_v1.Pod) {
 		if pod != nil {
 			count++
 		}

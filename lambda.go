@@ -70,7 +70,7 @@ func callProducer(f interface{}) interface{} {
 // fail-hard needs call MustNoError method. The error can be also be returned at the end of a pipeline
 // via lambda operation method which is defined in lambda_operation.go
 type Lambda struct {
-	op    KubernetesOperation
+	op    *kubernetesExecutable
 	val   <-chan kubernetesResource
 	Error error
 }
