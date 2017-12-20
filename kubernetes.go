@@ -1,26 +1,29 @@
 package lambda
 
 import (
+	"errors"
 	"fmt"
 	"reflect"
-
-	"errors"
+	"time"
 
 	api_app_v1 "k8s.io/api/apps/v1beta1"
 	api_v1 "k8s.io/api/core/v1"
 	api_ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	api_store_v1 "k8s.io/api/storage/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 )
 
 type Resource string
 
 type kubernetesResource interface{}
 type kubernetesOpInterface interface{}
+type kubernetesVersionInterface interface{}
 
 type kubernetesExecutable struct {
 	clientset  kubernetes.Interface
@@ -29,9 +32,13 @@ type kubernetesExecutable struct {
 	Rs         Resource
 }
 
+type kubernetesWatchable struct {
+}
+
 type KubernetesClient interface {
 	InNamespace(namespace string) *Lambda
 	All() *Lambda
+	WatchNamespace(namespace string)
 }
 
 const (
@@ -107,6 +114,43 @@ func (rs Resource) GetObject() runtime.Object {
 	}
 }
 
+func (rs Resource) GeResourcetName() string {
+	switch rs {
+	// Resource not in any namespace
+	case Namespace:
+		return "namespaces"
+	case Node:
+		return "nodes"
+	case StorageClass:
+		return "storageclasses"
+	// Resource in a namespace
+	case Pod:
+		return "pods"
+	case ConfigMap:
+		return "configmaps"
+	case Service:
+		return "services"
+	case Endpoint:
+		return "endpoints"
+	case Secret:
+		return "secrets"
+	case Ingress:
+		return "ingresses"
+	case ReplicaSet:
+		return "replicasets"
+	case Deployment:
+		return "deployments"
+	case DaemonSet:
+		return "daemonsets"
+	case StatefulSet:
+		return "statefulsets"
+	case ReplicationController:
+		return "replicationcontrollers"
+	default:
+		return ""
+	}
+}
+
 func (rs Resource) InCluster() *kubernetesExecutable {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
@@ -169,6 +213,29 @@ func (exec *kubernetesExecutable) All() (l *Lambda) {
 	return l
 }
 
+func (exec *kubernetesExecutable) WatchNamespace(namespace string) {
+	client, err := exec.opGetRESTClient()
+	if err != nil {
+	}
+	watchlist := cache.NewListWatchFromClient(
+		client,
+		exec.Rs.GeResourcetName(),
+		exec.Namespace,
+		fields.Everything(),
+	)
+
+	_, controller := cache.NewInformer(
+		watchlist,
+		exec.Rs.GetObject(),
+		time.Second*0,
+		cache.ResourceEventHandlerFuncs{},
+	)
+	stop := make(chan struct{})
+	go controller.Run(stop)
+	time.Sleep(time.Second * 5)
+	stop <- struct{}{}
+}
+
 func (exec *kubernetesExecutable) getClientset() kubernetes.Interface {
 	if exec.clientset != nil {
 		return exec.clientset
@@ -185,7 +252,6 @@ func opInterface(rs Resource, namespace string, clientset kubernetes.Interface) 
 		return nil, errors.New("nil clientset proceed")
 	}
 	switch rs {
-
 	// Resource not in any namespace
 	case Namespace:
 		return clientset.CoreV1().Namespaces(), nil
@@ -193,7 +259,6 @@ func opInterface(rs Resource, namespace string, clientset kubernetes.Interface) 
 		return clientset.CoreV1().Nodes(), nil
 	case StorageClass:
 		return clientset.StorageV1().StorageClasses(), nil
-
 	// Resource in a namespace
 	case Pod:
 		return clientset.CoreV1().Pods(namespace), nil
@@ -205,6 +270,43 @@ func opInterface(rs Resource, namespace string, clientset kubernetes.Interface) 
 		return clientset.CoreV1().Endpoints(namespace), nil
 	case Ingress:
 		return clientset.ExtensionsV1beta1().Ingresses(namespace), nil
+	case ReplicaSet:
+		return clientset.ExtensionsV1beta1().ReplicaSets(namespace), nil
+	case Deployment:
+		return clientset.ExtensionsV1beta1().Deployments(namespace), nil
+	case DaemonSet:
+		return clientset.ExtensionsV1beta1().DaemonSets(namespace), nil
+	case StatefulSet:
+		return clientset.AppsV1beta1().StatefulSets(namespace), nil
+	case ReplicationController:
+		return clientset.CoreV1().ReplicationControllers(namespace), nil
+	default:
+		return nil, fmt.Errorf("unknown resource type %s", rs.String())
+	}
+}
+
+func apiInterface(rs Resource, clientset kubernetes.Interface) (kubernetesVersionInterface, error){
+	if clientset == nil {
+		return nil, errors.New("nil clientset proceed")
+	}
+	switch rs {
+	case Namespace:
+		return clientset.CoreV1(), nil
+	case Node:
+		return clientset.CoreV1(), nil
+	case StorageClass:
+		return clientset.StorageV1(), nil
+	// Resource in a namespace
+	case Pod:
+		return clientset.CoreV1(), nil
+	case ConfigMap:
+		return clientset.CoreV1(), nil
+	case Service:
+		return clientset.CoreV1(), nil
+	case Endpoint:
+		return clientset.CoreV1(), nil
+	case Ingress:
+		return clientset.ExtensionsV1beta1(), nil
 	case ReplicaSet:
 		return clientset.ExtensionsV1beta1().ReplicaSets(namespace), nil
 	case Deployment:
@@ -279,7 +381,7 @@ func callUpdateInterface(op kubernetesOpInterface, item kubernetesResource) (kub
 	return ret[0].Interface(), nil
 }
 
-func callDeleteInterface(op kubernetesResource, name string) error {
+func callDeleteInterface(op kubernetesOpInterface, name string) error {
 	method := reflect.ValueOf(op).MethodByName("Delete")
 	ret := method.Call([]reflect.Value{
 		reflect.ValueOf(name),
@@ -291,7 +393,7 @@ func callDeleteInterface(op kubernetesResource, name string) error {
 	return nil
 }
 
-func callWatchInterface(op kubernetesResource) (<-chan watch.Event, error) {
+func callWatchInterface(op kubernetesOpInterface) (<-chan watch.Event, error) {
 	method := reflect.ValueOf(op).MethodByName("Watch")
 	ret := method.Call([]reflect.Value{
 		reflect.ValueOf(meta_v1.ListOptions{}),
@@ -301,6 +403,13 @@ func callWatchInterface(op kubernetesResource) (<-chan watch.Event, error) {
 	}
 	watcher := ret[0].Interface().(watch.Interface)
 	return watcher.ResultChan(), nil
+}
+
+func callRESTClientInterface(op kubernetesOpInterface) rest.Interface {
+	method := reflect.ValueOf(op).MethodByName("RESTClient")
+	ret := method.Call([]reflect.Value{})
+	client := ret[0].Interface().(rest.Interface)
+	return client
 }
 
 func (exec *kubernetesExecutable) opListInterface() ([]kubernetesResource, error) {
@@ -354,6 +463,7 @@ func (exec *kubernetesExecutable) opWatchInterface(t watch.EventType) (<-chan ku
 	}
 	rsCh := make(chan kubernetesResource)
 	go func() {
+		defer close(rsCh)
 		for event := range eventCh {
 			if event.Type == t {
 				rsCh <- event.Object
@@ -361,4 +471,13 @@ func (exec *kubernetesExecutable) opWatchInterface(t watch.EventType) (<-chan ku
 		}
 	}()
 	return rsCh, nil
+}
+
+func (exec *kubernetesExecutable) opGetRESTClient() (rest.Interface, error) {
+	op, err := opInterface(exec.Rs, exec.Namespace, exec.getClientset())
+	api apiInterface(rs, exec.getClientset())
+	if err != nil {
+		return nil, err
+	}
+	return callRESTClientInterface(op), nil
 }

@@ -36,3 +36,7 @@ func TestReflectCall(t *testing.T) {
 	err = callDeleteInterface(op, "foo")
 	assert.NoError(t, err, "some error happened")
 }
+
+func TestWatchCall(t *testing.T) {
+	Pod.Mock().WatchNamespace("test")
+}

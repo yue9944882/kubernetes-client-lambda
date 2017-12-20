@@ -55,3 +55,7 @@ func TestNamespaceMock(t *testing.T) {
 	assert.Equal(t, true, deleted, "create success")
 	assert.NoError(t, err, "creation failure")
 }
+
+func TestMockWatch(t *testing.T) {
+
+}
