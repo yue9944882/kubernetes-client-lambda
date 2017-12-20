@@ -62,6 +62,7 @@ As the following example shown, Calling `Mock()` on Kubernetes Type Enumeration 
 
 ```go
 import kubernetes "github.com/yue9944882/kubernetes-client-lambda"
+
 kubernetes.ReplicaSet.Mock().InNamespace("test").Add(
     // An anonymous function simply returns a pointer to kubernetes resource 
     // Returned objects will be added to stream

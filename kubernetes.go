@@ -12,6 +12,7 @@ import (
 	api_store_v1 "k8s.io/api/storage/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
@@ -290,6 +291,18 @@ func callDeleteInterface(op kubernetesResource, name string) error {
 	return nil
 }
 
+func callWatchInterface(op kubernetesResource) (<-chan watch.Event, error) {
+	method := reflect.ValueOf(op).MethodByName("Watch")
+	ret := method.Call([]reflect.Value{
+		reflect.ValueOf(meta_v1.ListOptions{}),
+	})
+	if err := ret[1].Interface(); err != nil {
+		return nil, err.(error)
+	}
+	watcher := ret[0].Interface().(watch.Interface)
+	return watcher.ResultChan(), nil
+}
+
 func (exec *kubernetesExecutable) opListInterface() ([]kubernetesResource, error) {
 	op, err := opInterface(exec.Rs, exec.Namespace, exec.getClientset())
 	if err != nil {
@@ -328,4 +341,24 @@ func (exec *kubernetesExecutable) opDeleteInterface(name string) error {
 		return err
 	}
 	return callDeleteInterface(op, name)
+}
+
+func (exec *kubernetesExecutable) opWatchInterface(t watch.EventType) (<-chan kubernetesResource, error) {
+	op, err := opInterface(exec.Rs, exec.Namespace, exec.getClientset())
+	if err != nil {
+		return nil, err
+	}
+	eventCh, err := callWatchInterface(op)
+	if err != nil {
+		return nil, err
+	}
+	rsCh := make(chan kubernetesResource)
+	go func() {
+		for event := range eventCh {
+			if event.Type == t {
+				rsCh <- event.Object
+			}
+		}
+	}()
+	return rsCh, nil
 }
