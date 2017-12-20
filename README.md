@@ -61,8 +61,8 @@ go get github.com/yue9944882/kubernetes-client-lambda
 As the following example shown, Calling `Mock()` on Kubernetes Type Enumeration will create the expected mocking resources for you:
 
 ```go
-var rs api_ext_v1.ReplicaSet
-ReplicaSet.Mock().InNamespace("test").Add(
+import kubernetes "github.com/yue9944882/kubernetes-client-lambda"
+kubernetes.ReplicaSet.Mock().InNamespace("test").Add(
     // An anonymous function simply returns a pointer to kubernetes resource 
     // Returned objects will be added to stream
     func(){
