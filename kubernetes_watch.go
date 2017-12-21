@@ -1,18 +1,36 @@
 package lambda
 
 import (
+	"reflect"
 	"sync"
+
+	"k8s.io/apimachinery/pkg/watch"
 )
 
 type watchStopCh chan struct{}
-
-type watchEntry struct {
-	stopCh    watchStopCh
-	functions []Function
+type watchFunction struct {
+	function Function
+	t        watch.EventType
 }
 
-func (we *watchEntry) AddFunc(f Function) {
-	we.functions = append(we.functions, f)
+type watchEntry struct {
+	stopCh         watchStopCh
+	watchFunctions []watchFunction
+}
+
+func (we *watchEntry) AddFunc(t watch.EventType, f Function) {
+	we.watchFunctions = append(we.watchFunctions, watchFunction{
+		function: f,
+		t:        t,
+	})
+}
+
+func (we *watchEntry) DelFunc(t watch.EventType, f Function) {
+	for index, wf := range we.watchFunctions {
+		if reflect.ValueOf(wf.function).Pointer() == reflect.ValueOf(f).Pointer() && wf.t == t {
+			we.watchFunctions = append(we.watchFunctions[:index], we.watchFunctions[index+1:]...)
+		}
+	}
 }
 
 type namespacedEntries map[string]*watchEntry
@@ -31,23 +49,32 @@ type watchManager struct {
 
 func getWatchManager() *watchManager {
 	once.Do(func() {
-		//instance := &watchManager{
-		//	watchStopChs: make(resourcedEntries),
-		//}
+		watchManagerInstance = &watchManager{
+			watchStopChs: make(resourcedEntries),
+		}
 	})
-	return nil
+	return watchManagerInstance
 }
 
-func (wm *watchManager) register(rs Resource, ns string, function Function) {
+func (wm *watchManager) registerFunc(rs Resource, ns string, t watch.EventType, function Function) *watchEntry {
+	wm.rwlock.Lock()
+	defer wm.rwlock.Unlock()
 	wm.preStop(rs, ns)
 	entry := wm.getEntry(rs, ns)
-	entry.AddFunc(function)
+	entry.AddFunc(t, function)
+	return entry
+}
 
+func (wm *watchManager) unregisterFunc(rs Resource, ns string, t watch.EventType, function Function) *watchEntry {
+	wm.rwlock.Lock()
+	defer wm.rwlock.Unlock()
+	wm.preStop(rs, ns)
+	entry := wm.getEntry(rs, ns)
+	entry.DelFunc(t, function)
+	return entry
 }
 
 func (wm *watchManager) preStop(rs Resource, ns string) {
-	wm.rwlock.Lock()
-	defer wm.rwlock.Unlock()
 	if _, exists := wm.watchStopChs[rs.String()]; !exists {
 		wm.watchStopChs[rs.String()] = make(namespacedEntries)
 	}
@@ -59,16 +86,9 @@ func (wm *watchManager) preStop(rs Resource, ns string) {
 		return
 	}
 	wm.watchStopChs[rs.String()][ns] = &watchEntry{
-		stopCh:    ch,
-		functions: []Function{},
+		stopCh:         ch,
+		watchFunctions: []watchFunction{},
 	}
-}
-
-func (wm *watchManager) start(entry *watchEntry) {
-	go func() {
-
-	}()
-
 }
 
 func (wm *watchManager) getEntry(rs Resource, ns string) *watchEntry {

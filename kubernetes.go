@@ -11,7 +11,6 @@ import (
 	api_ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	api_store_v1 "k8s.io/api/storage/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
@@ -33,12 +32,91 @@ type kubernetesExecutable struct {
 }
 
 type kubernetesWatchable struct {
+	exec *kubernetesExecutable
 }
 
-type KubernetesClient interface {
-	InNamespace(namespace string) *Lambda
-	All() *Lambda
-	WatchNamespace(namespace string)
+func (watchable *kubernetesWatchable) Register(t watch.EventType, function Function) error {
+	entry := getWatchManager().registerFunc(watchable.exec.Rs, watchable.exec.Namespace, t, function)
+	op, err := opInterface(watchable.exec.Rs, watchable.exec.Namespace, watchable.exec.getClientset())
+	if err != nil {
+		return err
+	}
+	addFuncs := []Function{}
+	updateFuncs := []Function{}
+	deleteFuncs := []Function{}
+
+	for _, wf := range entry.watchFunctions {
+		switch wf.t {
+		case watch.Added:
+			addFuncs = append(addFuncs, wf.function)
+		case watch.Modified:
+			updateFuncs = append(updateFuncs, wf.function)
+		case watch.Deleted:
+			deleteFuncs = append(deleteFuncs, wf.function)
+		}
+	}
+
+	handlerFuncs := cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj interface{}) {
+			for _, addf := range addFuncs {
+				callFunction(addf, obj)
+			}
+		},
+		UpdateFunc: func(oldObj, newObj interface{}) {
+			for _, updatef := range updateFuncs {
+				callFunction(updatef, newObj)
+			}
+		},
+		DeleteFunc: func(obj interface{}) {
+			for _, deletef := range deleteFuncs {
+				callFunction(deletef, obj)
+			}
+		},
+	}
+	fmt.Printf("%#v\n", addFuncs)
+	fmt.Printf("%#v\n", updateFuncs)
+	fmt.Printf("%#v\n", deleteFuncs)
+
+	go func() {
+		if len(entry.watchFunctions) > 0 {
+			listwatch, err := getListWatch(op)
+			_, controller := cache.NewInformer(
+				listwatch,
+				watchable.exec.Rs.GetObject(),
+				time.Second*1,
+				handlerFuncs,
+			)
+			if err != nil {
+				panic(err)
+			}
+			controller.Run(entry.stopCh)
+		}
+	}()
+	return nil
+}
+
+func (watchable *kubernetesWatchable) Unregister(t watch.EventType, function Function) error {
+	entry := getWatchManager().unregisterFunc(watchable.exec.Rs, watchable.exec.Namespace, t, function)
+	op, err := opInterface(watchable.exec.Rs, watchable.exec.Namespace, watchable.exec.getClientset())
+	if err != nil {
+		return err
+	}
+	go func() {
+		if len(entry.watchFunctions) > 0 {
+			listwatch, err := getListWatch(op)
+			_, controller := cache.NewInformer(
+				listwatch,
+				watchable.exec.Rs.GetObject(),
+				time.Second*0,
+				cache.ResourceEventHandlerFuncs{},
+			)
+			if err != nil {
+				panic(err)
+			}
+			controller.Run(entry.stopCh)
+		}
+	}()
+	return nil
 }
 
 const (
@@ -213,27 +291,10 @@ func (exec *kubernetesExecutable) All() (l *Lambda) {
 	return l
 }
 
-func (exec *kubernetesExecutable) WatchNamespace(namespace string) {
-	client, err := exec.opGetRESTClient()
-	if err != nil {
+func (exec *kubernetesExecutable) WatchNamespace(namespace string) *kubernetesWatchable {
+	return &kubernetesWatchable{
+		exec: exec,
 	}
-	watchlist := cache.NewListWatchFromClient(
-		client,
-		exec.Rs.GeResourcetName(),
-		exec.Namespace,
-		fields.Everything(),
-	)
-
-	_, controller := cache.NewInformer(
-		watchlist,
-		exec.Rs.GetObject(),
-		time.Second*0,
-		cache.ResourceEventHandlerFuncs{},
-	)
-	stop := make(chan struct{})
-	go controller.Run(stop)
-	time.Sleep(time.Second * 5)
-	stop <- struct{}{}
 }
 
 func (exec *kubernetesExecutable) getClientset() kubernetes.Interface {
@@ -245,6 +306,33 @@ func (exec *kubernetesExecutable) getClientset() kubernetes.Interface {
 		return nil
 	}
 	return clientset
+}
+
+func getListWatch(op kubernetesOpInterface) (*cache.ListWatch, error) {
+	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
+		method := reflect.ValueOf(op).MethodByName("List")
+		ret := method.Call([]reflect.Value{
+			reflect.ValueOf(meta_v1.ListOptions{}),
+		})
+		if err := ret[1].Interface(); err != nil {
+			return nil, err.(error)
+		}
+		return ret[0].Interface().(runtime.Object), nil
+	}
+	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
+		method := reflect.ValueOf(op).MethodByName("Watch")
+		ret := method.Call([]reflect.Value{
+			reflect.ValueOf(meta_v1.ListOptions{}),
+		})
+		if err := ret[1].Interface(); err != nil {
+			return nil, err.(error)
+		}
+		return ret[0].Interface().(watch.Interface), nil
+	}
+	return &cache.ListWatch{
+		ListFunc:  listFunc,
+		WatchFunc: watchFunc,
+	}, nil
 }
 
 func opInterface(rs Resource, namespace string, clientset kubernetes.Interface) (kubernetesOpInterface, error) {
@@ -285,7 +373,7 @@ func opInterface(rs Resource, namespace string, clientset kubernetes.Interface) 
 	}
 }
 
-func apiInterface(rs Resource, clientset kubernetes.Interface) (kubernetesVersionInterface, error){
+func apiInterface(rs Resource, clientset kubernetes.Interface) (kubernetesVersionInterface, error) {
 	if clientset == nil {
 		return nil, errors.New("nil clientset proceed")
 	}
@@ -308,15 +396,15 @@ func apiInterface(rs Resource, clientset kubernetes.Interface) (kubernetesVersio
 	case Ingress:
 		return clientset.ExtensionsV1beta1(), nil
 	case ReplicaSet:
-		return clientset.ExtensionsV1beta1().ReplicaSets(namespace), nil
+		return clientset.ExtensionsV1beta1(), nil
 	case Deployment:
-		return clientset.ExtensionsV1beta1().Deployments(namespace), nil
+		return clientset.ExtensionsV1beta1(), nil
 	case DaemonSet:
-		return clientset.ExtensionsV1beta1().DaemonSets(namespace), nil
+		return clientset.ExtensionsV1beta1(), nil
 	case StatefulSet:
-		return clientset.AppsV1beta1().StatefulSets(namespace), nil
+		return clientset.AppsV1beta1(), nil
 	case ReplicationController:
-		return clientset.CoreV1().ReplicationControllers(namespace), nil
+		return clientset.CoreV1(), nil
 	default:
 		return nil, fmt.Errorf("unknown resource type %s", rs.String())
 	}
@@ -325,14 +413,9 @@ func apiInterface(rs Resource, clientset kubernetes.Interface) (kubernetesVersio
 func callListInterface(op kubernetesOpInterface) ([]kubernetesResource, error) {
 	var resources []kubernetesResource
 	method := reflect.ValueOf(op).MethodByName("List")
-	var ret []reflect.Value
-	if method.Type().NumIn() == 0 {
-		ret = method.Call([]reflect.Value{})
-	} else if method.Type().NumIn() == 1 {
-		ret = method.Call([]reflect.Value{
-			reflect.ValueOf(meta_v1.ListOptions{}),
-		})
-	}
+	ret := method.Call([]reflect.Value{
+		reflect.ValueOf(meta_v1.ListOptions{}),
+	})
 	if err := ret[1].Interface(); err != nil {
 		return nil, err.(error)
 	}
@@ -405,8 +488,8 @@ func callWatchInterface(op kubernetesOpInterface) (<-chan watch.Event, error) {
 	return watcher.ResultChan(), nil
 }
 
-func callRESTClientInterface(op kubernetesOpInterface) rest.Interface {
-	method := reflect.ValueOf(op).MethodByName("RESTClient")
+func callRESTClientInterface(api kubernetesVersionInterface) rest.Interface {
+	method := reflect.ValueOf(api).MethodByName("RESTClient")
 	ret := method.Call([]reflect.Value{})
 	client := ret[0].Interface().(rest.Interface)
 	return client
@@ -474,10 +557,9 @@ func (exec *kubernetesExecutable) opWatchInterface(t watch.EventType) (<-chan ku
 }
 
 func (exec *kubernetesExecutable) opGetRESTClient() (rest.Interface, error) {
-	op, err := opInterface(exec.Rs, exec.Namespace, exec.getClientset())
-	api apiInterface(rs, exec.getClientset())
+	api, err := apiInterface(exec.Rs, exec.getClientset())
 	if err != nil {
 		return nil, err
 	}
-	return callRESTClientInterface(op), nil
+	return callRESTClientInterface(api), nil
 }

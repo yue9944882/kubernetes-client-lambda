@@ -14,7 +14,7 @@ var (
 
 // Mock return a mock interface of lambda KubernetesClient
 // the mock KubernetesClient is statusful and if you want to reset its status then use MockReset
-func (rs Resource) Mock() KubernetesClient {
+func (rs Resource) Mock() *kubernetesExecutable {
 	mutex.Lock()
 	defer mutex.Unlock()
 	return &kubernetesExecutable{
