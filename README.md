@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/yue9944882/kubernetes-client-lambda.svg?branch=master)](https://travis-ci.org/yue9944882/kubernetes-client-lambda)
 [![codecov](https://codecov.io/gh/yue9944882/kubernetes-client-lambda/branch/master/graph/badge.svg)](https://codecov.io/gh/yue9944882/kubernetes-client-lambda)
-[![Go Report Card](https://goreportcard.com/badge/github.com/yue9944882/kubernetes-client-lambda)](https://goreportcard.com/report/github.com/yue9944882/kubernetes-client-lambda)
+[![Go Report Card](https://goreportcard.com/badge/github.com/yue9944882/kubernetes-client-lambda)](https://goreportcard.com/badge/github.com/yue9944882/kubernetes-client-lambda)
 [![Go Doc](https://godoc.org/github.com/yue9944882/kubernetes-client-lambda?status.svg)](https://godoc.org/github.com/yue9944882/kubernetes-client-lambda)
 
 ### What is Kubernetes Client Lambda? ###
