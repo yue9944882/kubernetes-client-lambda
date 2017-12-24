@@ -83,3 +83,36 @@ func TestFakeWatchCall(t *testing.T) {
 	assert.Equal(t, err, 3, "watch event missed")
 }
 */
+
+func TestKubernetesInterface(t *testing.T) {
+	clientset := fake.NewSimpleClientset(getAllRuntimeObject()...)
+	resources := []Resource{
+		Namespace,
+		Node,
+		StorageClass,
+		Pod,
+		ReplicaSet,
+		ReplicationController,
+		Deployment,
+		ConfigMap,
+		Ingress,
+		Service,
+		Endpoint,
+		Secret,
+		DaemonSet,
+		StatefulSet,
+	}
+
+	for _, resource := range resources {
+		obj := resource.GetObject()
+		assert.NotNil(t, obj, "Failed to get object from resource")
+		rsname := resource.GeResourcetName()
+		assert.NotEqual(t, "", rsname, "Failed to get resource name")
+		op, err := opInterface(resource, "default", clientset)
+		assert.NotNilf(t, op, "Failed to get op interface from %s", resource.String())
+		assert.NoError(t, err, "Some error in op interface")
+		api, err := apiInterface(resource, clientset)
+		assert.NotNil(t, api, "Failed to get api interface")
+		assert.NoError(t, err, "Some error in api interface")
+	}
+}

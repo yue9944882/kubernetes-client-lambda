@@ -365,6 +365,8 @@ func opInterface(rs Resource, namespace string, clientset kubernetes.Interface) 
 		return clientset.AppsV1beta1().StatefulSets(namespace), nil
 	case ReplicationController:
 		return clientset.CoreV1().ReplicationControllers(namespace), nil
+	case Secret:
+		return clientset.CoreV1().Secrets(namespace), nil
 	default:
 		return nil, fmt.Errorf("unknown resource type %s", rs.String())
 	}
@@ -401,6 +403,8 @@ func apiInterface(rs Resource, clientset kubernetes.Interface) (kubernetesVersio
 	case StatefulSet:
 		return clientset.AppsV1beta1(), nil
 	case ReplicationController:
+		return clientset.CoreV1(), nil
+	case Secret:
 		return clientset.CoreV1(), nil
 	default:
 		return nil, fmt.Errorf("unknown resource type %s", rs.String())
