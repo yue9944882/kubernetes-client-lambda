@@ -261,7 +261,7 @@ func (exec *kubernetesExecutable) InNamespace(namespace string) (l *Lambda) {
 			l.Error = err
 			return
 		}
-		for _, resource := range resources {
+		for resource := range resources {
 			ch <- resource
 		}
 	}()
@@ -281,7 +281,7 @@ func (exec *kubernetesExecutable) All() (l *Lambda) {
 			l.Error = err
 			return
 		}
-		for _, resource := range resources {
+		for resource := range resources {
 			ch <- resource
 		}
 	}()
@@ -411,24 +411,13 @@ func apiInterface(rs Resource, clientset kubernetes.Interface) (kubernetesVersio
 	}
 }
 
-func callListInterface(op kubernetesOpInterface) ([]kubernetesResource, error) {
-	var resources []kubernetesResource
+func callListInterface(op kubernetesOpInterface) (<-chan kubernetesResource, error) {
 	method := reflect.ValueOf(op).MethodByName("List")
-	ret := method.Call([]reflect.Value{
-		reflect.ValueOf(meta_v1.ListOptions{}),
-	})
-	if err := ret[1].Interface(); err != nil {
-		return nil, err.(error)
+	pgr := &ListPager{
+		PageSize: 128,
+		PageFn:   method.Interface(),
 	}
-	items := reflect.Indirect(ret[0]).FieldByName("Items")
-	if items.Type().Kind() != reflect.Slice {
-		return nil, errors.New("tainted results from list method")
-	}
-	for i := 0; i < items.Len(); i++ {
-		item := items.Index(i).Addr().Interface()
-		resources = append(resources, item)
-	}
-	return resources, nil
+	return pgr.List(meta_v1.ListOptions{})
 }
 
 func callGetInterface(op kubernetesOpInterface, name string) (kubernetesResource, error) {
@@ -496,7 +485,7 @@ func callRESTClientInterface(api kubernetesVersionInterface) rest.Interface {
 	return client
 }
 
-func (exec *kubernetesExecutable) opListInterface() ([]kubernetesResource, error) {
+func (exec *kubernetesExecutable) opListInterface() (<-chan kubernetesResource, error) {
 	op, err := opInterface(exec.Rs, exec.Namespace, exec.getClientset())
 	if err != nil {
 		return nil, err

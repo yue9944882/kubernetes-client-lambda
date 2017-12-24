@@ -23,7 +23,7 @@ func TestReflectCall(t *testing.T) {
 	assert.NotEmpty(t, resource, "resources create empty")
 	resources, err := callListInterface(op)
 	assert.NoError(t, err, "some error in list interface")
-	assert.NotEmpty(t, resources, "resources list empty")
+	assert.NotNil(t, resources, "resources list empty")
 	pod.Labels = make(map[string]string)
 	pod.Labels["test1"] = "v1"
 	resource, err = callUpdateInterface(op, &pod)
