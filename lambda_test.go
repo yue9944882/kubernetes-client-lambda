@@ -208,3 +208,20 @@ func TestKubernetesOperation(t *testing.T) {
 	assert.Equal(t, true, ok, "Failed to delete pod")
 	assert.NoError(t, err, "Some error")
 }
+
+func TestLambdaCollect(t *testing.T) {
+	Pod.ResetMock()
+	ok, err := Pod.Mock().InNamespace("test").Add(func() *api_v1.Pod {
+		var pod api_v1.Pod
+		pod.Name = "foo"
+		return &pod
+	}).Create()
+	assert.Equal(t, true, ok, "Failed to create pod")
+	assert.NoError(t, err, "Some error")
+	count := 0
+	Pod.Mock().InNamespace("test").Collect().Each(func(pod *api_v1.Pod) {
+		count++
+		assert.Equal(t, "foo", pod.Name, "Deep copied pod name mismatch")
+	})
+	assert.Equal(t, 1, count, "Failed to iter over pods")
+}

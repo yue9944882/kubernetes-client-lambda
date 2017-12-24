@@ -112,6 +112,7 @@ And these lambda can be consumed by following function:
 
 | Name | Pipelinable | Lambda Type | Description |
 |---|---|----|---|
+| Collect | yes | - | Deep copies the elements and put them into collection | 
 | Add | yes | Producer | Add the element returned by lambda into collection |
 | Map | yes | Consumer | Add all the elements returned by lambda to a new collection |
 | Grep | yes | Predicate | Remove the element from collection if applied lambda returned a `false` |

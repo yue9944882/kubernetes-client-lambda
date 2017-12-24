@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 // Predicate is a function has only one parameter and return boolean.
@@ -82,6 +84,26 @@ func (lambda *Lambda) clone() (*Lambda, chan kubernetesResource) {
 		val: ch,
 	}
 	return l, ch
+}
+
+//********************************************************
+// Lambda with no parameter
+//********************************************************
+
+// Collect deep copies every element in the lambda
+func (lambda *Lambda) Collect() *Lambda {
+	l, ch := lambda.clone()
+	go func() {
+		defer close(ch)
+		for item := range lambda.val {
+			if obj, ok := item.(runtime.Object); !ok {
+				l.Error = fmt.Errorf("Invalid object type of %#v", obj)
+			} else {
+				ch <- obj.DeepCopyObject()
+			}
+		}
+	}()
+	return l
 }
 
 //********************************************************
