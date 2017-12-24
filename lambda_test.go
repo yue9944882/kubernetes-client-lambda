@@ -172,3 +172,39 @@ func TestIterLambda(t *testing.T) {
 	assert.Equal(t, 1, count, "count mismatch")
 	assert.NoError(t, err, "some error")
 }
+
+func TestKubernetesOperation(t *testing.T) {
+	var tmppod *api_v1.Pod
+	ok, err := Pod.Mock().InNamespace("test").Add(func() *api_v1.Pod {
+		var pod api_v1.Pod
+		pod.Name = "default"
+		pod.Annotations = make(map[string]string)
+		pod.Annotations["a1"] = "v1"
+		pod.Labels = make(map[string]string)
+		pod.Labels["l1"] = "b1"
+		tmppod = &pod
+		return &pod
+	}).UpdateOrCreate()
+	assert.Equal(t, true, ok, "Failed to create pod")
+	assert.Equal(t, "b1", tmppod.Labels["l1"], "Label mismatched")
+	assert.NoError(t, err, "Some error")
+	ok, err = Pod.Mock().InNamespace("test").NameEqual("default").Map(func(pod *api_v1.Pod) *api_v1.Pod {
+		pod.Labels["l2"] = "b2"
+		tmppod = pod
+		return pod
+	}).Update()
+	assert.Equal(t, "b2", tmppod.Labels["l2"], "Label mismatched")
+	assert.Equal(t, true, ok, "Failed to update pod")
+	assert.NoError(t, err, "Some error")
+	ok, err = Pod.Mock().InNamespace("test").NameEqual("default").Map(func(pod *api_v1.Pod) *api_v1.Pod {
+		pod.Labels["l3"] = "b3"
+		tmppod = pod
+		return pod
+	}).UpdateIfExist()
+	assert.Equal(t, "b3", tmppod.Labels["l3"], "Label mismatched")
+	assert.Equal(t, true, ok, "Failed to update-if-exist pod")
+	assert.NoError(t, err, "Some error")
+	ok, err = Pod.Mock().InNamespace("test").NameEqual("default").Delete()
+	assert.Equal(t, true, ok, "Failed to delete pod")
+	assert.NoError(t, err, "Some error")
+}
