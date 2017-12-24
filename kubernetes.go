@@ -73,9 +73,6 @@ func (watchable *kubernetesWatchable) Register(t watch.EventType, function Funct
 			}
 		},
 	}
-	fmt.Printf("%#v\n", addFuncs)
-	fmt.Printf("%#v\n", updateFuncs)
-	fmt.Printf("%#v\n", deleteFuncs)
 
 	go func() {
 		if len(entry.watchFunctions) > 0 {
