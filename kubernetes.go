@@ -258,7 +258,7 @@ func (exec *kubernetesExecutable) InNamespace(namespace string) (l *Lambda) {
 		defer close(ch)
 		resources, err := exec.opListInterface()
 		if err != nil {
-			l.Error = err
+			l.addError(err)
 			return
 		}
 		for resource := range resources {
@@ -278,7 +278,7 @@ func (exec *kubernetesExecutable) All() (l *Lambda) {
 		defer close(ch)
 		resources, err := exec.opListInterface()
 		if err != nil {
-			l.Error = err
+			l.addError(err)
 			return
 		}
 		for resource := range resources {

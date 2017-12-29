@@ -72,16 +72,24 @@ func callProducer(f interface{}) interface{} {
 // fail-hard needs call MustNoError method. The error can be also be returned at the end of a pipeline
 // via lambda operation method which is defined in lambda_operation.go
 type Lambda struct {
-	op    *kubernetesExecutable
-	val   <-chan kubernetesResource
-	Error error
+	op     *kubernetesExecutable
+	val    <-chan kubernetesResource
+	Errors []error
+}
+
+func (lambda *Lambda) addError(err error) {
+	if lambda.Errors == nil {
+		lambda.Errors = []error{err}
+	}
+	lambda.Errors = append(lambda.Errors, err)
 }
 
 func (lambda *Lambda) clone() (*Lambda, chan kubernetesResource) {
 	ch := make(chan kubernetesResource)
 	l := &Lambda{
-		op:  lambda.op,
-		val: ch,
+		op:     lambda.op,
+		val:    ch,
+		Errors: lambda.Errors,
 	}
 	return l, ch
 }
@@ -97,7 +105,7 @@ func (lambda *Lambda) Collect() *Lambda {
 		defer close(ch)
 		for item := range lambda.val {
 			if obj, ok := item.(runtime.Object); !ok {
-				l.Error = fmt.Errorf("Invalid object type of %#v", obj)
+				l.addError(fmt.Errorf("Invalid object type of %#v", obj))
 			} else {
 				ch <- obj.DeepCopyObject()
 			}
@@ -222,7 +230,7 @@ func (lambda *Lambda) NameRegex(regex string) *Lambda {
 		name := reflect.Indirect(reflect.ValueOf(kr)).FieldByName("Name").String()
 		matched, err := regexMatch(name, regex)
 		if err != nil {
-			lambda.Error = err
+			lambda.addError(err)
 			return false
 		}
 		return matched
