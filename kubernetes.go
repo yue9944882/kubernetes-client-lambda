@@ -35,6 +35,22 @@ type kubernetesWatchable struct {
 	exec *kubernetesExecutable
 }
 
+// KubernetesLambda provides access entry function for kubernetes
+type KubernetesLambda interface {
+	// WatchNamespace watches a namespace
+	// register or unregister "function"-typed lambda
+	WatchNamespace(namespace string) KubernetesWatch
+	// InNamespace list the resources in the namespace with a default pager
+	// and put them into lambda pipeline
+	InNamespace(namespace string) (l *Lambda)
+}
+
+// KubernetesWatch provides watch registry for kubernetes
+type KubernetesWatch interface {
+	Register(t watch.EventType, function Function) error
+	Unregister(t watch.EventType, function Function) error
+}
+
 func (watchable *kubernetesWatchable) Register(t watch.EventType, function Function) error {
 	entry := getWatchManager().registerFunc(watchable.exec.Rs, watchable.exec.Namespace, t, function)
 	op, err := opInterface(watchable.exec.Rs, watchable.exec.Namespace, watchable.exec.getClientset())
@@ -226,7 +242,7 @@ func (rs Resource) GeResourcetName() string {
 	}
 }
 
-func (rs Resource) InCluster() *kubernetesExecutable {
+func (rs Resource) InCluster() KubernetesLambda {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
@@ -235,7 +251,7 @@ func (rs Resource) InCluster() *kubernetesExecutable {
 	return rs.OutOfCluster(config)
 }
 
-func (rs Resource) OutOfCluster(config *rest.Config) *kubernetesExecutable {
+func (rs Resource) OutOfCluster(config *rest.Config) KubernetesLambda {
 	return &kubernetesExecutable{
 		restconfig: config,
 		Namespace:  meta_v1.NamespaceDefault,
@@ -288,7 +304,7 @@ func (exec *kubernetesExecutable) All() (l *Lambda) {
 	return l
 }
 
-func (exec *kubernetesExecutable) WatchNamespace(namespace string) *kubernetesWatchable {
+func (exec *kubernetesExecutable) WatchNamespace(namespace string) KubernetesWatch {
 	return &kubernetesWatchable{
 		exec: exec,
 	}
