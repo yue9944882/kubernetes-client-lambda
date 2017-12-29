@@ -18,6 +18,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
+// Resource is kubernetes resource enumeration hiding api version
 type Resource string
 
 type kubernetesResource interface{}
@@ -37,12 +38,23 @@ type kubernetesWatchable struct {
 
 // KubernetesLambda provides access entry function for kubernetes
 type KubernetesLambda interface {
-	// WatchNamespace watches a namespace
-	// register or unregister "function"-typed lambda
+	// WatchNamespace watches a namespace.
+	// register or unregister "function"-typed lambda.
 	WatchNamespace(namespace string) KubernetesWatch
+
 	// InNamespace list the resources in the namespace with a default pager
-	// and put them into lambda pipeline
-	InNamespace(namespace string) (l *Lambda)
+	// and put them into lambda pipeline.
+	InNamespace(namespace string) *Lambda
+
+	// All list all the resources.
+	// ** Note that this method should only be used for resource which doesn't
+	// ** belong to any namespace. e.g. Node, Namespace..
+	All() *Lambda
+
+	// WatchAll watches the change from resources.
+	// ** Note that this method should only be used for resource which doesn't
+	// ** belong to any namespace. e.g. Node, Namespace..
+	WatchAll() KubernetesWatch
 }
 
 // KubernetesWatch provides watch registry for kubernetes
@@ -51,6 +63,8 @@ type KubernetesWatch interface {
 	Unregister(t watch.EventType, function Function) error
 }
 
+// Register appends the function and it will be invoked as long as any event matches
+// the event type arrives.
 func (watchable *kubernetesWatchable) Register(t watch.EventType, function Function) error {
 	entry := getWatchManager().registerFunc(watchable.exec.Rs, watchable.exec.Namespace, t, function)
 	op, err := opInterface(watchable.exec.Rs, watchable.exec.Namespace, watchable.exec.getClientset())
@@ -108,6 +122,8 @@ func (watchable *kubernetesWatchable) Register(t watch.EventType, function Funct
 	return nil
 }
 
+// Unregister make sure the function won't be invoked again even if any event matching the event
+// type arrives.
 func (watchable *kubernetesWatchable) Unregister(t watch.EventType, function Function) error {
 	entry := getWatchManager().unregisterFunc(watchable.exec.Rs, watchable.exec.Namespace, t, function)
 	op, err := opInterface(watchable.exec.Rs, watchable.exec.Namespace, watchable.exec.getClientset())
@@ -168,6 +184,7 @@ func getAllRuntimeObject() []runtime.Object {
 	}
 }
 
+// GetObject gets an empty object of the resource
 func (rs Resource) GetObject() runtime.Object {
 	switch rs {
 	// Resource not in any namespace
@@ -205,6 +222,7 @@ func (rs Resource) GetObject() runtime.Object {
 	}
 }
 
+// GetResourceName gets resource name as string
 func (rs Resource) GeResourcetName() string {
 	switch rs {
 	// Resource not in any namespace
@@ -242,6 +260,8 @@ func (rs Resource) GeResourcetName() string {
 	}
 }
 
+// InCluster establishes connection with kube-apiserver if the program is
+// running in a kubernetes cluster.
 func (rs Resource) InCluster() KubernetesLambda {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
@@ -251,6 +271,8 @@ func (rs Resource) InCluster() KubernetesLambda {
 	return rs.OutOfCluster(config)
 }
 
+// OutOfCluster establishe connection witha kube-apiserver by loading specific
+// kube-config.
 func (rs Resource) OutOfCluster(config *rest.Config) KubernetesLambda {
 	return &kubernetesExecutable{
 		restconfig: config,
@@ -305,6 +327,13 @@ func (exec *kubernetesExecutable) All() (l *Lambda) {
 }
 
 func (exec *kubernetesExecutable) WatchNamespace(namespace string) KubernetesWatch {
+	exec.Namespace = namespace
+	return &kubernetesWatchable{
+		exec: exec,
+	}
+}
+
+func (exec *kubernetesExecutable) WatchAll() KubernetesWatch {
 	return &kubernetesWatchable{
 		exec: exec,
 	}
