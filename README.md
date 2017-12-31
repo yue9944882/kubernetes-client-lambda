@@ -4,6 +4,17 @@
 [![codecov](https://codecov.io/gh/yue9944882/kubernetes-client-lambda/branch/master/graph/badge.svg)](https://codecov.io/gh/yue9944882/kubernetes-client-lambda)
 [![Go Doc](https://godoc.org/github.com/yue9944882/kubernetes-client-lambda?status.svg)](https://godoc.org/github.com/yue9944882/kubernetes-client-lambda)
 
+
+- [What is Kubernetes Client Lambda?](#whats-kcl)
+    - [InCluster & OutOfCluster example](#cluster-example)
+    - [Watch example](#watch-example)
+    - [Mock example](#mock-example)
+- [How to get it?](#how-to-get-it)
+- [Why Kubernetes Client Lambda is better?](#why-better)
+- [Supported Lambda Function Type](#lambda-type)
+- [Primitive Pipeline Type](#pipeline-type)
+
+<a name="whats-kcl"></a> 
 ### What is Kubernetes Client Lambda? ###
 
 ![logo](image/logo.png)
@@ -19,6 +30,7 @@ Basically, KCL is implemented by golang `reflect` and golang native facilities. 
 
 ![detail](image/detail.png)
 
+<a name="cluster-example"></a>
 With KCL, you can operate kubernetes resources like this example:
 
 ```go
@@ -41,23 +53,8 @@ kubernetes.Pod.OutOfCluster(config).InNamespace("devops").NameEqual("test-pod").
 )
 ```
 
-### How to Use it? ###
-
-```
-go get github.com/yue9944882/kubernetes-client-lambda
-```
-
-### Why Kubernetes Client Lambda is better? ###
-
-- Manipulating kubernetes resources in one line
-- Lambda-styled kubernetes resource processing.
-- Pipelined and streamlized.
-- Light-weight and only depends on [kubernetes/client-go](https://github.com/kubernetes/client-go)
-- User-friendly mocking kubernetes static interface
-
-### How to Mock Kubernetes Resources? ###
-
-As the following example shown, Calling `Mock()` on Kubernetes Type Enumeration will create the expected mocking resources for you:
+<a name="watch-example"></a>
+As the following example is shown, Calling `Mock()` on Kubernetes Type Enumeration will create the expected mocking resources for you:
 
 ```go
 import kubernetes "github.com/yue9944882/kubernetes-client-lambda"
@@ -73,17 +70,49 @@ kubernetes.ReplicaSet.Mock().InNamespace("test").Add(
 ).Create()
 ```
 
+<a name="mock-example"></a>
+Also watching the changes can be easier via KCL's wrapping of client-go's informer. You don't have to directly access events from client-go, instead, registering / unregistering closure to KCL's API:
+```go
+import kubernetes "github.com/yue9944882/kubernetes-client-lambda"
+import "k8s.io/apimachinery/pkg/watch"
+
+var kl KubernetesLambda = kubernetes.ReplicaSet.InCluster()
+// kl = kubernetes.ReplicaSet.Mock()
+
+kl.WatchNamespace("default").Register(watch.Added, func(rs *api_v1.ReplicaSet){
+    fmt.Println(rs.Name)
+})
+```
+
+<a name="how-to-get-it"></a>
+### How to Get it? ###
+
+```
+go get github.com/yue9944882/kubernetes-client-lambda
+```
+
+<a name="why-better"></a>
+### Why Kubernetes Client Lambda is better? ###
+
+- Manipulating kubernetes resources in one line
+- Lambda-styled kubernetes resource processing.
+- Watch resource event by registering a ["Function"](#lambda-type) lambda
+- Pipelined and streamlized.
+- Light-weight and only depends on [kubernetes/client-go](https://github.com/kubernetes/client-go)
+- User-friendly mocking kubernetes static interface
 
 Checkout more examples under `example` folder.
 
 
-### Supported Lambda Function Type  ###
+### Supported Lambda Function Type ###
 
 First we have following types of lambda function: 
 
 (KR denotes Kubernetes Resources, a pointer to resouce, e.g. *api_v1.Pod, *api_ext_v1.ReplicaSet..)
 
-##### Primitive Lambda #####
+##### Primitive Lambda Type #####
+
+<a name="lambda-type"></a>
 
 | Name | Parameter Type | Return Type |
 |---|---|---|
@@ -108,6 +137,7 @@ First we have following types of lambda function:
 And these lambda can be consumed by following function: 
 
 
+<a name="pipeline-type"></a>
 ##### Primitive Pipeline Type #####
 
 | Name | Pipelinable | Lambda Type | Description |
