@@ -1,16 +1,18 @@
 package lambda
 
 import (
+	"fmt"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
 	api_v1 "k8s.io/api/core/v1"
+	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
 )
-
-func init() {
-}
 
 func TestReflectCall(t *testing.T) {
 	clientset := fake.NewSimpleClientset(getAllRuntimeObject()...)
@@ -39,35 +41,36 @@ func TestReflectCall(t *testing.T) {
 
 // ByPass following test there's underlying BUGs in client-go
 // See PR: #57504
-
-/*
 func TestWatchCall(t *testing.T) {
-	count := 0
+	var count int32
 	Pod.Mock().WatchNamespace("default").Register(watch.Added, func(pod *api_v1.Pod) {
-		count++
+		fmt.Println("~~~")
+		atomic.AddInt32(&count, 1)
 	})
+	time.Sleep(time.Second)
 	ok, err := Pod.Mock().InNamespace("default").Add(func() *api_v1.Pod {
 		var pod api_v1.Pod
 		pod.Name = "test"
 		pod.Namespace = "default"
 		return &pod
 	}).CreateIfNotExist()
-	assert.Equal(t, 1, count, "watch call missed")
+	time.Sleep(time.Second)
+	assert.Equal(t, int32(1), atomic.LoadInt32(&count), "watch call missed")
 	assert.NoError(t, err, "some error")
 	assert.Equal(t, true, ok, "create failed")
 }
 
 func TestFakeWatchCall(t *testing.T) {
-	clientset := fake.NewSimpleClientset(getAllRuntimeObject()...)
+	clientset := newFakeClientSet(getAllRuntimeObject()...)
 	watcher, err := clientset.CoreV1().Pods("default").Watch(meta_v1.ListOptions{})
 	var pod api_v1.Pod
-	count := 0
+	var count int32
 	go func() {
 		evCh := watcher.ResultChan()
 		for {
 			select {
 			case <-evCh:
-				count++
+				atomic.AddInt32(&count, 1)
 			}
 		}
 	}()
@@ -79,10 +82,10 @@ func TestFakeWatchCall(t *testing.T) {
 	assert.NoError(t, err, "some error")
 	pod.Name = "xxx1"
 	_, err = clientset.CoreV1().Pods("default").Create(&pod)
+	time.Sleep(time.Second)
 	assert.NoError(t, err, "some error")
-	assert.Equal(t, err, 3, "watch event missed")
+	assert.Equal(t, int32(3), atomic.LoadInt32(&count), "watch event missed")
 }
-*/
 
 func TestKubernetesInterface(t *testing.T) {
 	clientset := fake.NewSimpleClientset(getAllRuntimeObject()...)

@@ -51,11 +51,9 @@ func TestWatchManagerFunc(t *testing.T) {
 func TestWatchManagerRegister(t *testing.T) {
 	f := func() {}
 	e := getWatchManager().registerFunc(Pod, "default", watch.Added, f)
+	l := len(e.watchFunctions)
 	assert.Equal(t, e, getWatchManager().getEntry(Pod, "default"), "Entry mismatch")
-	assert.Equal(t, 1, len(e.watchFunctions), "Failed to register function")
-	go func() {
-		<-e.stopCh
-	}()
+	assert.Equal(t, l, len(e.watchFunctions), "Failed to register function")
 	getWatchManager().unregisterFunc(Pod, "default", watch.Added, f)
-	assert.Equal(t, 0, len(e.watchFunctions), "Failed to unregister function")
+	assert.Equal(t, l-1, len(e.watchFunctions), "Failed to unregister function")
 }

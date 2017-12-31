@@ -71,6 +71,7 @@ func (watchable *kubernetesWatchable) Register(t watch.EventType, function Funct
 	if err != nil {
 		return err
 	}
+
 	addFuncs := []Function{}
 	updateFuncs := []Function{}
 	deleteFuncs := []Function{}
@@ -78,11 +79,11 @@ func (watchable *kubernetesWatchable) Register(t watch.EventType, function Funct
 	for _, wf := range entry.watchFunctions {
 		switch wf.t {
 		case watch.Added:
-			addFuncs = append(addFuncs, wf.function)
+			addFuncs = append(addFuncs, wf.function.(Function))
 		case watch.Modified:
-			updateFuncs = append(updateFuncs, wf.function)
+			updateFuncs = append(updateFuncs, wf.function.(Function))
 		case watch.Deleted:
-			deleteFuncs = append(deleteFuncs, wf.function)
+			deleteFuncs = append(deleteFuncs, wf.function.(Function))
 		}
 	}
 
@@ -104,21 +105,21 @@ func (watchable *kubernetesWatchable) Register(t watch.EventType, function Funct
 		},
 	}
 
-	go func() {
-		if len(entry.watchFunctions) > 0 {
+	if len(entry.watchFunctions) > 0 {
+		go func() {
 			listwatch, err := getListWatch(op)
 			_, controller := cache.NewInformer(
 				listwatch,
 				watchable.exec.Rs.GetObject(),
-				time.Second*1,
+				time.Second*0,
 				handlerFuncs,
 			)
 			if err != nil {
 				panic(err)
 			}
 			controller.Run(entry.stopCh)
-		}
-	}()
+		}()
+	}
 	return nil
 }
 

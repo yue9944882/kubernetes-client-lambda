@@ -23,7 +23,7 @@ before_script:
 - go get github.com/stretchr/testify/assert
 
 script:
-- go vet .
+# - go vet .
 - go test -race -coverprofile=test.out .
 - cat test.out >> coverage.txt
 - go test -race -coverprofile=test.out ./test
