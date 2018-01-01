@@ -7,6 +7,8 @@ import (
 	"time"
 
 	api_app_v1 "k8s.io/api/apps/v1beta1"
+	api_batch_v1 "k8s.io/api/batch/v1"
+	api_batch_v2alpha1 "k8s.io/api/batch/v2alpha1"
 	api_v1 "k8s.io/api/core/v1"
 	api_ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	api_store_v1 "k8s.io/api/storage/v1"
@@ -164,6 +166,8 @@ const (
 	Secret                Resource = "Secret"
 	DaemonSet             Resource = "DaemonSet"
 	StatefulSet           Resource = "StatefulSet"
+	Job                   Resource = "Job"
+	CronJob               Resource = "CronJob"
 )
 
 func getAllRuntimeObject() []runtime.Object {
@@ -182,6 +186,8 @@ func getAllRuntimeObject() []runtime.Object {
 		Secret.GetObject(),
 		DaemonSet.GetObject(),
 		StatefulSet.GetObject(),
+		Job.GetObject(),
+		CronJob.GetObject(),
 	}
 }
 
@@ -218,13 +224,17 @@ func (rs Resource) GetObject() runtime.Object {
 		return &api_app_v1.StatefulSet{}
 	case ReplicationController:
 		return &api_v1.ReplicationController{}
+	case Job:
+		return &api_batch_v1.Job{}
+	case CronJob:
+		return &api_batch_v2alpha1.CronJob{}
 	default:
 		return nil
 	}
 }
 
 // GetResourceName gets resource name as string
-func (rs Resource) GeResourcetName() string {
+func (rs Resource) GetResourceName() string {
 	switch rs {
 	// Resource not in any namespace
 	case Namespace:
@@ -256,6 +266,10 @@ func (rs Resource) GeResourcetName() string {
 		return "statefulsets"
 	case ReplicationController:
 		return "replicationcontrollers"
+	case Job:
+		return "jobs"
+	case CronJob:
+		return "cronjobs"
 	default:
 		return ""
 	}
@@ -413,6 +427,10 @@ func opInterface(rs Resource, namespace string, clientset kubernetes.Interface) 
 		return clientset.CoreV1().ReplicationControllers(namespace), nil
 	case Secret:
 		return clientset.CoreV1().Secrets(namespace), nil
+	case Job:
+		return clientset.BatchV1().Jobs(namespace), nil
+	case CronJob:
+		return clientset.BatchV2alpha1().CronJobs(namespace), nil
 	default:
 		return nil, fmt.Errorf("unknown resource type %s", rs.String())
 	}
@@ -452,6 +470,10 @@ func apiInterface(rs Resource, clientset kubernetes.Interface) (kubernetesVersio
 		return clientset.CoreV1(), nil
 	case Secret:
 		return clientset.CoreV1(), nil
+	case Job:
+		return clientset.BatchV1(), nil
+	case CronJob:
+		return clientset.BatchV2alpha1(), nil
 	default:
 		return nil, fmt.Errorf("unknown resource type %s", rs.String())
 	}
