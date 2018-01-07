@@ -6,12 +6,6 @@ import (
 	"reflect"
 	"time"
 
-	api_app_v1 "k8s.io/api/apps/v1beta1"
-	api_batch_v1 "k8s.io/api/batch/v1"
-	api_batch_v2alpha1 "k8s.io/api/batch/v2alpha1"
-	api_v1 "k8s.io/api/core/v1"
-	api_ext_v1beta1 "k8s.io/api/extensions/v1beta1"
-	api_store_v1 "k8s.io/api/storage/v1"
 	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -151,130 +145,6 @@ func (watchable *kubernetesWatchable) Unregister(t watch.EventType, function Fun
 	return nil
 }
 
-const (
-	Namespace             Resource = "Namespace"
-	Node                  Resource = "Node"
-	StorageClass          Resource = "StorageClass"
-	Pod                   Resource = "Pod"
-	ReplicaSet            Resource = "ReplicaSet"
-	ReplicationController Resource = "ReplicationController"
-	Deployment            Resource = "Deployment"
-	ConfigMap             Resource = "ConfigMap"
-	Ingress               Resource = "Ingress"
-	Service               Resource = "Service"
-	Endpoint              Resource = "Endpoint"
-	Secret                Resource = "Secret"
-	DaemonSet             Resource = "DaemonSet"
-	StatefulSet           Resource = "StatefulSet"
-	Job                   Resource = "Job"
-	CronJob               Resource = "CronJob"
-)
-
-func getAllRuntimeObject() []runtime.Object {
-	return []runtime.Object{
-		Namespace.GetObject(),
-		Node.GetObject(),
-		StorageClass.GetObject(),
-		Pod.GetObject(),
-		ReplicaSet.GetObject(),
-		ReplicationController.GetObject(),
-		Deployment.GetObject(),
-		ConfigMap.GetObject(),
-		Ingress.GetObject(),
-		Service.GetObject(),
-		Endpoint.GetObject(),
-		Secret.GetObject(),
-		DaemonSet.GetObject(),
-		StatefulSet.GetObject(),
-		Job.GetObject(),
-		CronJob.GetObject(),
-	}
-}
-
-// GetObject gets an empty object of the resource
-func (rs Resource) GetObject() runtime.Object {
-	switch rs {
-	// Resource not in any namespace
-	case Namespace:
-		return &api_v1.Namespace{}
-	case Node:
-		return &api_v1.Node{}
-	case StorageClass:
-		return &api_store_v1.StorageClass{}
-	// Resource in a namespace
-	case Pod:
-		return &api_v1.Pod{}
-	case ConfigMap:
-		return &api_v1.ConfigMap{}
-	case Service:
-		return &api_v1.Service{}
-	case Endpoint:
-		return &api_v1.Endpoints{}
-	case Secret:
-		return &api_v1.Secret{}
-	case Ingress:
-		return &api_ext_v1beta1.Ingress{}
-	case ReplicaSet:
-		return &api_ext_v1beta1.ReplicaSet{}
-	case Deployment:
-		return &api_ext_v1beta1.Deployment{}
-	case DaemonSet:
-		return &api_ext_v1beta1.DaemonSet{}
-	case StatefulSet:
-		return &api_app_v1.StatefulSet{}
-	case ReplicationController:
-		return &api_v1.ReplicationController{}
-	case Job:
-		return &api_batch_v1.Job{}
-	case CronJob:
-		return &api_batch_v2alpha1.CronJob{}
-	default:
-		return nil
-	}
-}
-
-// GetResourceName gets resource name as string
-func (rs Resource) GetResourceName() string {
-	switch rs {
-	// Resource not in any namespace
-	case Namespace:
-		return "namespaces"
-	case Node:
-		return "nodes"
-	case StorageClass:
-		return "storageclasses"
-	// Resource in a namespace
-	case Pod:
-		return "pods"
-	case ConfigMap:
-		return "configmaps"
-	case Service:
-		return "services"
-	case Endpoint:
-		return "endpoints"
-	case Secret:
-		return "secrets"
-	case Ingress:
-		return "ingresses"
-	case ReplicaSet:
-		return "replicasets"
-	case Deployment:
-		return "deployments"
-	case DaemonSet:
-		return "daemonsets"
-	case StatefulSet:
-		return "statefulsets"
-	case ReplicationController:
-		return "replicationcontrollers"
-	case Job:
-		return "jobs"
-	case CronJob:
-		return "cronjobs"
-	default:
-		return ""
-	}
-}
-
 // InCluster establishes connection with kube-apiserver if the program is
 // running in a kubernetes cluster.
 func (rs Resource) InCluster() KubernetesLambda {
@@ -392,50 +262,6 @@ func getListWatch(op kubernetesOpInterface) (*cache.ListWatch, error) {
 	}, nil
 }
 
-func opInterface(rs Resource, namespace string, clientset kubernetes.Interface) (kubernetesOpInterface, error) {
-	if clientset == nil {
-		return nil, errors.New("nil clientset proceed")
-	}
-	switch rs {
-	// Resource not in any namespace
-	case Namespace:
-		return clientset.CoreV1().Namespaces(), nil
-	case Node:
-		return clientset.CoreV1().Nodes(), nil
-	case StorageClass:
-		return clientset.StorageV1().StorageClasses(), nil
-	// Resource in a namespace
-	case Pod:
-		return clientset.CoreV1().Pods(namespace), nil
-	case ConfigMap:
-		return clientset.CoreV1().ConfigMaps(namespace), nil
-	case Service:
-		return clientset.CoreV1().Services(namespace), nil
-	case Endpoint:
-		return clientset.CoreV1().Endpoints(namespace), nil
-	case Ingress:
-		return clientset.ExtensionsV1beta1().Ingresses(namespace), nil
-	case ReplicaSet:
-		return clientset.ExtensionsV1beta1().ReplicaSets(namespace), nil
-	case Deployment:
-		return clientset.ExtensionsV1beta1().Deployments(namespace), nil
-	case DaemonSet:
-		return clientset.ExtensionsV1beta1().DaemonSets(namespace), nil
-	case StatefulSet:
-		return clientset.AppsV1beta1().StatefulSets(namespace), nil
-	case ReplicationController:
-		return clientset.CoreV1().ReplicationControllers(namespace), nil
-	case Secret:
-		return clientset.CoreV1().Secrets(namespace), nil
-	case Job:
-		return clientset.BatchV1().Jobs(namespace), nil
-	case CronJob:
-		return clientset.BatchV2alpha1().CronJobs(namespace), nil
-	default:
-		return nil, fmt.Errorf("unknown resource type %s", rs.String())
-	}
-}
-
 func apiInterface(rs Resource, clientset kubernetes.Interface) (kubernetesVersionInterface, error) {
 	if clientset == nil {
 		return nil, errors.New("nil clientset proceed")
@@ -448,13 +274,17 @@ func apiInterface(rs Resource, clientset kubernetes.Interface) (kubernetesVersio
 	case StorageClass:
 		return clientset.StorageV1(), nil
 	// Resource in a namespace
+
+	// core/v1
 	case Pod:
 		return clientset.CoreV1(), nil
 	case ConfigMap:
 		return clientset.CoreV1(), nil
 	case Service:
 		return clientset.CoreV1(), nil
-	case Endpoint:
+	case Endpoints:
+		return clientset.CoreV1(), nil
+	case LimitRange:
 		return clientset.CoreV1(), nil
 	case Ingress:
 		return clientset.ExtensionsV1beta1(), nil

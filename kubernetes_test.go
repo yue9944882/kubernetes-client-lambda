@@ -100,7 +100,7 @@ func TestKubernetesInterface(t *testing.T) {
 		ConfigMap,
 		Ingress,
 		Service,
-		Endpoint,
+		Endpoints,
 		Secret,
 		DaemonSet,
 		StatefulSet,
@@ -109,10 +109,9 @@ func TestKubernetesInterface(t *testing.T) {
 	for _, resource := range resources {
 		obj := resource.GetObject()
 		assert.NotNil(t, obj, "Failed to get object from resource")
-		rsname := resource.GetResourceName()
-		assert.NotEqual(t, "", rsname, "Failed to get resource name")
+		assert.NotEqual(t, "", resource, "Failed to get resource name")
 		op, err := opInterface(resource, "default", clientset)
-		assert.NotNilf(t, op, "Failed to get op interface from %s", resource.String())
+		assert.NotNilf(t, op, "Failed to get op interface from %s", string(resource))
 		assert.NoError(t, err, "Some error in op interface")
 		api, err := apiInterface(resource, clientset)
 		assert.NotNil(t, api, "Failed to get api interface")
