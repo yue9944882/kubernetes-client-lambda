@@ -19,6 +19,7 @@ type Resource string
 
 type kubernetesResource interface{}
 type kubernetesOpInterface interface{}
+type kubernetesApiGroupInterface interface{}
 type kubernetesVersionInterface interface{}
 
 type kubernetesExecutable struct {
@@ -171,6 +172,10 @@ func (rs Resource) String() string {
 }
 
 func (exec *kubernetesExecutable) InNamespace(namespace string) (l *Lambda) {
+	if namespaced, err := exec.Rs.IsNamespaced(exec.Rs.GetApiGroupInterface(exec.getClientset())); !namespaced || err != nil {
+		// Failhard
+		panic(fmt.Sprintf("abortion: %s is not a namespaced resource", exec.Rs))
+	}
 	exec.Namespace = namespace
 	ch := make(chan kubernetesResource)
 	l = &Lambda{
