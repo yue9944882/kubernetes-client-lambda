@@ -3,6 +3,7 @@ package lambda
 import (
 	"errors"
 	"fmt"
+	"reflect"
 
 	api_admission_v1alpha1 "k8s.io/api/admissionregistration/v1alpha1"
 	api_admission_v1beta1 "k8s.io/api/admissionregistration/v1beta1"
@@ -276,112 +277,141 @@ func opInterface(rs Resource, namespace string, clientset kubernetes.Interface) 
 	if clientset == nil {
 		return nil, errors.New("nil clientset proceed")
 	}
+	apiInterface := rs.GetApiGroupInterface(clientset)
+	if apiInterface == nil {
+		return nil, fmt.Errorf("resource not implemented: %s", string(rs))
+	}
+	namespaced, err := rs.IsNamespaced(apiInterface)
+	if err != nil {
+		return nil, err
+	}
+	args := []reflect.Value{}
+	if namespaced {
+		args = append(args, reflect.ValueOf(namespace))
+	}
+	ret := reflect.ValueOf(apiInterface).Call(args)
+	if len(ret) != 1 || ret[0].IsNil() {
+		return nil, fmt.Errorf("unexpected return type: %s", string(rs))
+	}
+	return ret[0].Interface(), nil
+}
+
+func (rs Resource) IsNamespaced(i kubernetesApiGroupInterface) (bool, error) {
+	if reflect.TypeOf(i).NumIn() == 1 && reflect.TypeOf(i).In(0).String() == "string" {
+		return true, nil
+	} else if reflect.TypeOf(i).NumIn() == 0 {
+		return false, nil
+	}
+	return false, fmt.Errorf("invalid method signature %s", string(rs))
+}
+
+func (rs Resource) GetApiGroupInterface(clientset kubernetes.Interface) kubernetesApiGroupInterface {
 	switch rs {
 	// core
 	case Pod:
-		return clientset.CoreV1().Pods(namespace), nil
+		return clientset.CoreV1().Pods
 	case Namespace:
-		return clientset.CoreV1().Namespaces(), nil
+		return clientset.CoreV1().Namespaces
 	case Node:
-		return clientset.CoreV1().Nodes(), nil
+		return clientset.CoreV1().Nodes
 	case Event:
-		return clientset.CoreV1().Events(namespace), nil
+		return clientset.CoreV1().Events
 	case Service:
-		return clientset.CoreV1().Services(namespace), nil
+		return clientset.CoreV1().Services
 	case Endpoints:
-		return clientset.CoreV1().Endpoints(namespace), nil
+		return clientset.CoreV1().Endpoints
 	case LimitRange:
-		return clientset.CoreV1().LimitRanges(namespace), nil
+		return clientset.CoreV1().LimitRanges
 	case Secret:
-		return clientset.CoreV1().Secrets(namespace), nil
+		return clientset.CoreV1().Secrets
 	case ConfigMap:
-		return clientset.CoreV1().ConfigMaps(namespace), nil
+		return clientset.CoreV1().ConfigMaps
 	case ServiceAccout:
-		return clientset.CoreV1().ServiceAccounts(namespace), nil
+		return clientset.CoreV1().ServiceAccounts
 	case PodTemplate:
-		return clientset.CoreV1().PodTemplates(namespace), nil
+		return clientset.CoreV1().PodTemplates
 	case ResourceQuota:
-		return clientset.CoreV1().ResourceQuotas(namespace), nil
+		return clientset.CoreV1().ResourceQuotas
 	case PersistentVolume:
-		return clientset.CoreV1().PersistentVolumes(), nil
+		return clientset.CoreV1().PersistentVolumes
 	case PersistentVolumeClaim:
-		return clientset.CoreV1().PersistentVolumeClaims(namespace), nil
+		return clientset.CoreV1().PersistentVolumeClaims
 	case ReplicationController:
-		return clientset.CoreV1().ReplicationControllers(namespace), nil
+		return clientset.CoreV1().ReplicationControllers
 
 	// extensions
 	case Ingress:
-		return clientset.ExtensionsV1beta1().Ingresses(namespace), nil
+		return clientset.ExtensionsV1beta1().Ingresses
 	case ReplicaSet:
-		return clientset.ExtensionsV1beta1().ReplicaSets(namespace), nil
+		return clientset.ExtensionsV1beta1().ReplicaSets
 	case Deployment:
-		return clientset.ExtensionsV1beta1().Deployments(namespace), nil
+		return clientset.ExtensionsV1beta1().Deployments
 	case DaemonSet:
-		return clientset.ExtensionsV1beta1().DaemonSets(namespace), nil
+		return clientset.ExtensionsV1beta1().DaemonSets
 	case PodSecurityPolicy:
-		return clientset.ExtensionsV1beta1().PodSecurityPolicies(), nil
+		return clientset.ExtensionsV1beta1().PodSecurityPolicies
 
 	// apps
 	case StatefulSet:
-		return clientset.AppsV1().StatefulSets(namespace), nil
+		return clientset.AppsV1().StatefulSets
 	case ControllerRevision:
-		return clientset.AppsV1().ControllerRevisions(namespace), nil
+		return clientset.AppsV1().ControllerRevisions
 
 	// rbac
 	case ClusterRole:
-		return clientset.RbacV1().ClusterRoles(), nil
+		return clientset.RbacV1().ClusterRoles
 	case ClusterRoleBinding:
-		return clientset.RbacV1().ClusterRoleBindings(), nil
+		return clientset.RbacV1().ClusterRoleBindings
 	case Role:
-		return clientset.RbacV1().Roles(namespace), nil
+		return clientset.RbacV1().Roles
 	case RoleBinding:
-		return clientset.RbacV1().RoleBindings(namespace), nil
+		return clientset.RbacV1().RoleBindings
 
 	// batch
 	case Job:
-		return clientset.BatchV1().Jobs(namespace), nil
+		return clientset.BatchV1().Jobs
 	case CronJob:
-		return clientset.BatchV2alpha1().CronJobs(namespace), nil
+		return clientset.BatchV2alpha1().CronJobs
 
 	// storage
 	case StorageClass:
-		return clientset.StorageV1().StorageClasses(), nil
+		return clientset.StorageV1().StorageClasses
 	case VolumeAttachment:
-		return clientset.StorageV1alpha1().VolumeAttachments(), nil
+		return clientset.StorageV1alpha1().VolumeAttachments
 
 	// settings
 	case PodPreset:
-		return clientset.SettingsV1alpha1().PodPresets(namespace), nil
+		return clientset.SettingsV1alpha1().PodPresets
 
 	// network
 	case NetworkPolicy:
-		return clientset.NetworkingV1().NetworkPolicies(namespace), nil
+		return clientset.NetworkingV1().NetworkPolicies
 
 	// autoscaling
 	case HorizontalPodAutoscaler:
-		return clientset.AutoscalingV1().HorizontalPodAutoscalers(namespace), nil
+		return clientset.AutoscalingV1().HorizontalPodAutoscalers
 
 	// authentication
 
 	// admissionregistration
 	case InitializerConfiguration:
-		return clientset.AdmissionregistrationV1alpha1().InitializerConfigurations(), nil
+		return clientset.AdmissionregistrationV1alpha1().InitializerConfigurations
 	case MutatingWebhookConfiguration:
-		return clientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations(), nil
+		return clientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations
 	case ValidatingWebhookConfiguration:
-		return clientset.AdmissionregistrationV1beta1().ValidatingWebhookConfigurations(), nil
+		return clientset.AdmissionregistrationV1beta1().ValidatingWebhookConfigurations
 
 	// certificates
 
 	// policy
 	case PodDisruptionBudget:
-		return clientset.PolicyV1beta1().PodDisruptionBudgets(namespace), nil
+		return clientset.PolicyV1beta1().PodDisruptionBudgets
 
 	// scheduling
 	case PriorityClass:
-		return clientset.SchedulingV1alpha1().PriorityClasses(), nil
+		return clientset.SchedulingV1alpha1().PriorityClasses
 
 	default:
-		return nil, fmt.Errorf("unknown resource type %s", rs.String())
+		return nil
 	}
 }
