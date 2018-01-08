@@ -38,7 +38,7 @@ With KCL, you can operate kubernetes resources like this example:
 import kubernetes "github.com/yue9944882/kubernetes-client-lambda"
 
 // In-Cluster example
-kubernetes.ReplicaSet.InCluster().InNamespace("test").NameEqual("foo-").Map(func(rs *api_ext_v1.ReplicaSet) rs*api_ext_v1.ReplicaSet {
+kubernetes.ReplicaSet.InCluster().InNamespace("test").NamePrefix("foo-").Map(func(rs *api_ext_v1.ReplicaSet) rs*api_ext_v1.ReplicaSet {
     // Edit in-place or clone a new one
     rs.Meta.Labels["foo-label1"] = "test" 
     return rs
