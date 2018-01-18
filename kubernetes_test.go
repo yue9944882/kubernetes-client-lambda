@@ -59,7 +59,7 @@ func TestWatchCall(t *testing.T) {
 }
 
 func TestFakeWatchCall(t *testing.T) {
-	clientset := newFakeClientSet(getAllRuntimeObject()...)
+	clientset := fake.NewSimpleClientset(getAllRuntimeObject()...)
 	watcher, err := clientset.CoreV1().Pods("default").Watch(meta_v1.ListOptions{})
 	var pod api_v1.Pod
 	var count int32
