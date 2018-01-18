@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"reflect"
 
-	api_admission_v1alpha1 "k8s.io/api/admissionregistration/v1alpha1"
-	api_admission_v1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	api_app_v1 "k8s.io/api/apps/v1beta1"
 	api_autoscale_v1 "k8s.io/api/autoscaling/v1"
 	api_batch_v1 "k8s.io/api/batch/v1"
@@ -14,12 +12,8 @@ import (
 	api_v1 "k8s.io/api/core/v1"
 	api_ext_v1beta1 "k8s.io/api/extensions/v1beta1"
 	api_network_v1 "k8s.io/api/networking/v1"
-	api_policy_v1beta1 "k8s.io/api/policy/v1beta1"
 	api_rbac_v1 "k8s.io/api/rbac/v1"
-	api_scheduling_v1alpha1 "k8s.io/api/scheduling/v1alpha1"
-	api_settings_v1alpha1 "k8s.io/api/settings/v1alpha1"
 	api_store_v1 "k8s.io/api/storage/v1"
-	api_store_v1alpha1 "k8s.io/api/storage/v1alpha1"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
@@ -65,11 +59,11 @@ const (
 	CronJob Resource = "CronJob"
 
 	// storage
-	StorageClass     Resource = "StorageClass"
-	VolumeAttachment Resource = "volumeattachments"
+	StorageClass Resource = "StorageClass"
+	// VolumeAttachment Resource = "volumeattachments"
 
 	// settings
-	PodPreset Resource = "podpresets"
+	// PodPreset Resource = "podpresets"
 
 	// network
 	NetworkPolicy Resource = "networkpolicies"
@@ -80,17 +74,17 @@ const (
 	// authentication
 
 	// admissionregistration
-	InitializerConfiguration       Resource = "initializerconfigurations"
-	MutatingWebhookConfiguration   Resource = "mutatingwebhookconfigurations"
-	ValidatingWebhookConfiguration Resource = "validatingwebhookconfigurations"
+	// InitializerConfiguration       Resource = "initializerconfigurations"
+	// MutatingWebhookConfiguration   Resource = "mutatingwebhookconfigurations"
+	// ValidatingWebhookConfiguration Resource = "validatingwebhookconfigurations"
 
 	// certificates
 
 	// policy
-	PodDisruptionBudget Resource = "poddisruptionbudgets"
+	// PodDisruptionBudget Resource = "poddisruptionbudgets"
 
 	// scheduling
-	PriorityClass Resource = "priorityclasses"
+	// PriorityClass Resource = "priorityclasses"
 )
 
 func getAllRuntimeObject() []runtime.Object {
@@ -135,10 +129,10 @@ func getAllRuntimeObject() []runtime.Object {
 
 		// storage
 		StorageClass.GetObject(),
-		VolumeAttachment.GetObject(),
+		// VolumeAttachment.GetObject(),
 
 		// settings
-		PodPreset.GetObject(),
+		// PodPreset.GetObject(),
 
 		// network
 		NetworkPolicy.GetObject(),
@@ -149,15 +143,15 @@ func getAllRuntimeObject() []runtime.Object {
 		// authentication
 
 		// admissionregistration
-		InitializerConfiguration.GetObject(),
-		MutatingWebhookConfiguration.GetObject(),
-		ValidatingWebhookConfiguration.GetObject(),
+		// InitializerConfiguration.GetObject(),
+		// MutatingWebhookConfiguration.GetObject(),
+		// ValidatingWebhookConfiguration.GetObject(),
 
 		// policy
-		PodDisruptionBudget.GetObject(),
+		// PodDisruptionBudget.GetObject(),
 
 		// scheduling
-		PriorityClass.GetObject(),
+		// PriorityClass.GetObject(),
 	}
 }
 
@@ -233,12 +227,13 @@ func (rs Resource) GetObject() runtime.Object {
 	// storage
 	case StorageClass:
 		return &api_store_v1.StorageClass{}
-	case VolumeAttachment:
-		return &api_store_v1alpha1.VolumeAttachment{}
+
+	// case VolumeAttachment:
+	// 	return &api_store_v1alpha1.VolumeAttachment{}
 
 	// settings
-	case PodPreset:
-		return &api_settings_v1alpha1.PodPreset{}
+	// case PodPreset:
+	//	return &api_settings_v1alpha1.PodPreset{}
 
 	// network
 	case NetworkPolicy:
@@ -251,22 +246,22 @@ func (rs Resource) GetObject() runtime.Object {
 	// authentication
 
 	// admissionregistration
-	case InitializerConfiguration:
-		return &api_admission_v1alpha1.InitializerConfiguration{}
-	case MutatingWebhookConfiguration:
-		return &api_admission_v1beta1.MutatingWebhookConfiguration{}
-	case ValidatingWebhookConfiguration:
-		return &api_admission_v1beta1.ValidatingWebhookConfiguration{}
+	// case InitializerConfiguration:
+	// 	return &api_admission_v1alpha1.InitializerConfiguration{}
+	// case MutatingWebhookConfiguration:
+	// 	return &api_admission_v1beta1.MutatingWebhookConfiguration{}
+	// case ValidatingWebhookConfiguration:
+	// 	return &api_admission_v1beta1.ValidatingWebhookConfiguration{}
 
 	// certificates
 
 	// policy
-	case PodDisruptionBudget:
-		return &api_policy_v1beta1.PodDisruptionBudget{}
+	// case PodDisruptionBudget:
+	//	return &api_policy_v1beta1.PodDisruptionBudget{}
 
 	// scheduling
-	case PriorityClass:
-		return &api_scheduling_v1alpha1.PriorityClass{}
+	// case PriorityClass:
+	//	return &api_scheduling_v1alpha1.PriorityClass{}
 
 	default:
 		return nil
@@ -353,9 +348,9 @@ func (rs Resource) GetApiGroupInterface(clientset kubernetes.Interface) kubernet
 
 	// apps
 	case StatefulSet:
-		return clientset.AppsV1().StatefulSets
+		return clientset.AppsV1beta1().StatefulSets
 	case ControllerRevision:
-		return clientset.AppsV1().ControllerRevisions
+		return clientset.AppsV1beta2().ControllerRevisions
 
 	// rbac
 	case ClusterRole:
@@ -376,12 +371,12 @@ func (rs Resource) GetApiGroupInterface(clientset kubernetes.Interface) kubernet
 	// storage
 	case StorageClass:
 		return clientset.StorageV1().StorageClasses
-	case VolumeAttachment:
-		return clientset.StorageV1alpha1().VolumeAttachments
+	// case VolumeAttachment:
+	// 	return clientset.Storage().VolumeAttachments
 
 	// settings
-	case PodPreset:
-		return clientset.SettingsV1alpha1().PodPresets
+	// case PodPreset:
+	//	return clientset.SettingsV1alpha1().PodPresets
 
 	// network
 	case NetworkPolicy:
@@ -394,22 +389,22 @@ func (rs Resource) GetApiGroupInterface(clientset kubernetes.Interface) kubernet
 	// authentication
 
 	// admissionregistration
-	case InitializerConfiguration:
-		return clientset.AdmissionregistrationV1alpha1().InitializerConfigurations
-	case MutatingWebhookConfiguration:
-		return clientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations
-	case ValidatingWebhookConfiguration:
-		return clientset.AdmissionregistrationV1beta1().ValidatingWebhookConfigurations
+	// case InitializerConfiguration:
+	// 	return clientset.AdmissionregistrationV1alpha1().InitializerConfigurations
+	// case MutatingWebhookConfiguration:
+	// 	return clientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations
+	// case ValidatingWebhookConfiguration:
+	// 	return clientset.AdmissionregistrationV1beta1().ValidatingWebhookConfigurations
 
 	// certificates
 
 	// policy
-	case PodDisruptionBudget:
-		return clientset.PolicyV1beta1().PodDisruptionBudgets
+	// case PodDisruptionBudget:
+	//	return clientset.PolicyV1beta1().PodDisruptionBudgets
 
 	// scheduling
-	case PriorityClass:
-		return clientset.SchedulingV1alpha1().PriorityClasses
+	// case PriorityClass:
+	//	return clientset.SchedulingV1alpha1().PriorityClasses
 
 	default:
 		return nil
