@@ -1,7 +1,6 @@
 package lambda
 
 import (
-	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -44,7 +43,6 @@ func TestReflectCall(t *testing.T) {
 func TestWatchCall(t *testing.T) {
 	var count int32
 	Pod.Mock().WatchNamespace("default").Register(watch.Added, func(pod *api_v1.Pod) {
-		fmt.Println("~~~")
 		atomic.AddInt32(&count, 1)
 	})
 	time.Sleep(time.Second)
