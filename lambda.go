@@ -26,6 +26,32 @@ type Function interface{}
 // Producer is recommeneded to be a closure so that the returning value can be controlled outside lambda.
 type Producer interface{}
 
+func getFirstArgInType(f interface{}) (Resource, error) {
+	outType := reflect.TypeOf(f).In(0)
+	return getResourceFromObject(outType)
+}
+
+func getFirstArgOutType(f interface{}) (Resource, error) {
+	outType := reflect.TypeOf(f).Out(0)
+	return getResourceFromObject(outType)
+}
+
+func getResourceTypeOfPredicate(predicate Predicate) (Resource, error) {
+	return getFirstArgInType(predicate)
+}
+
+func getResourceTypeOfConsumer(consumer Consumer) (Resource, error) {
+	return getFirstArgInType(consumer)
+}
+
+func getResourceTypeOfFunction(function Function) (Resource, error) {
+	return getFirstArgInType(function)
+}
+
+func getResourceTypeOfProducer(producer Producer) (Resource, error) {
+	return getFirstArgOutType(producer)
+}
+
 func callPredicate(f interface{}, arg interface{}) bool {
 	if isZeroOfUnderlyingType(arg) {
 		panic(fmt.Sprintf("nil argument detected when calling predicate %#v with arg %#v", f, arg))

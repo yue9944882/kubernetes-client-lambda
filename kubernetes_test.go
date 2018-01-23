@@ -42,11 +42,11 @@ func TestReflectCall(t *testing.T) {
 // See PR: #57504
 func TestWatchCall(t *testing.T) {
 	var count int32
-	Pod.Mock().WatchNamespace("default").Register(watch.Added, func(pod *api_v1.Pod) {
+	Mock().Type(Pod).WatchNamespace("default").Register(watch.Added, func(pod *api_v1.Pod) {
 		atomic.AddInt32(&count, 1)
 	})
 	time.Sleep(time.Second)
-	ok, err := Pod.Mock().InNamespace("default").Add(func() *api_v1.Pod {
+	ok, err := Mock().Type(Pod).InNamespace("default").Add(func() *api_v1.Pod {
 		var pod api_v1.Pod
 		pod.Name = "test"
 		pod.Namespace = "default"

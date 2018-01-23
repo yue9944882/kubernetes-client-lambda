@@ -12,7 +12,7 @@ import (
 func TestIngressperation(t *testing.T) {
 	ns := "default"
 
-	success, err := kubernetes.Ingress.OutOfCluster(restconfig).InNamespace(ns).Add(
+	success, err := kubernetes.OutOfCluster(restconfig).Type(kubernetes.Ingress).InNamespace(ns).Add(
 		func() *api_ext_v1.Ingress {
 			var ing api_ext_v1.Ingress
 			ing.Name = "foo"
@@ -40,7 +40,7 @@ func TestIngressperation(t *testing.T) {
 	).CreateIfNotExist()
 	assert.Equal(t, true, success, "failed to create ing")
 	assert.NoError(t, err, "some error happened")
-	success, err = kubernetes.Ingress.OutOfCluster(restconfig).InNamespace(ns).Grep(func(ing *api_ext_v1.Ingress) bool {
+	success, err = kubernetes.OutOfCluster(restconfig).Type(kubernetes.Ingress).InNamespace(ns).Grep(func(ing *api_ext_v1.Ingress) bool {
 		return ing.Name == "foo"
 	}).Map(func(ing *api_ext_v1.Ingress) *api_ext_v1.Ingress {
 		if ing.Labels == nil {
@@ -51,7 +51,7 @@ func TestIngressperation(t *testing.T) {
 	}).UpdateIfExist()
 	assert.Equal(t, true, success, "failed to update ing")
 	assert.NoError(t, err, "some error happened")
-	success, err = kubernetes.Ingress.OutOfCluster(restconfig).InNamespace(ns).Grep(func(ing *api_ext_v1.Ingress) bool {
+	success, err = kubernetes.OutOfCluster(restconfig).Type(kubernetes.Ingress).InNamespace(ns).Grep(func(ing *api_ext_v1.Ingress) bool {
 		return ing.Name == "foo"
 	}).Delete()
 	assert.Equal(t, true, success, "failed to delete ing")

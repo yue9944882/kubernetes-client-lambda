@@ -23,14 +23,34 @@ type kubernetesApiGroupInterface interface{}
 type kubernetesVersionInterface interface{}
 
 type kubernetesExecutable struct {
-	clientset  kubernetes.Interface
-	restconfig *rest.Config
-	Namespace  string
-	Rs         Resource
+	clientset kubernetes.Interface
+	Namespace string
+	Rs        Resource
 }
 
 type kubernetesWatchable struct {
 	exec *kubernetesExecutable
+}
+
+// KubernetesClientLambda provides manipulation interface for resources
+type KubernetesClientLambda interface {
+	Type(Resource) KubernetesLambda
+}
+
+type KubernetesClientLambdaImpl struct {
+	config *rest.Config
+}
+
+func (kcl *KubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
+	clientset, err := kubernetes.NewForConfig(kcl.config)
+	if err != nil {
+		panic(err)
+	}
+	return &kubernetesExecutable{
+		clientset: clientset,
+		Namespace: meta_v1.NamespaceDefault,
+		Rs:        rs,
+	}
 }
 
 // KubernetesLambda provides access entry function for kubernetes
@@ -64,7 +84,7 @@ type KubernetesWatch interface {
 // the event type arrives.
 func (watchable *kubernetesWatchable) Register(t watch.EventType, function Function) error {
 	entry := getWatchManager().registerFunc(watchable.exec.Rs, watchable.exec.Namespace, t, function)
-	op, err := opInterface(watchable.exec.Rs, watchable.exec.Namespace, watchable.exec.getClientset())
+	op, err := opInterface(watchable.exec.Rs, watchable.exec.Namespace, watchable.exec.clientset)
 	if err != nil {
 		return err
 	}
@@ -124,7 +144,7 @@ func (watchable *kubernetesWatchable) Register(t watch.EventType, function Funct
 // type arrives.
 func (watchable *kubernetesWatchable) Unregister(t watch.EventType, function Function) error {
 	entry := getWatchManager().unregisterFunc(watchable.exec.Rs, watchable.exec.Namespace, t, function)
-	op, err := opInterface(watchable.exec.Rs, watchable.exec.Namespace, watchable.exec.getClientset())
+	op, err := opInterface(watchable.exec.Rs, watchable.exec.Namespace, watchable.exec.clientset)
 	if err != nil {
 		return err
 	}
@@ -148,31 +168,25 @@ func (watchable *kubernetesWatchable) Unregister(t watch.EventType, function Fun
 
 // InCluster establishes connection with kube-apiserver if the program is
 // running in a kubernetes cluster.
-func (rs Resource) InCluster() KubernetesLambda {
+func InCluster() KubernetesClientLambda {
 	// creates the in-cluster config
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		panic(err.Error())
 	}
-	return rs.OutOfCluster(config)
+	return OutOfCluster(config)
 }
 
 // OutOfCluster establishe connection witha kube-apiserver by loading specific
 // kube-config.
-func (rs Resource) OutOfCluster(config *rest.Config) KubernetesLambda {
-	return &kubernetesExecutable{
-		restconfig: config,
-		Namespace:  meta_v1.NamespaceDefault,
-		Rs:         rs,
+func OutOfCluster(config *rest.Config) KubernetesClientLambda {
+	return &KubernetesClientLambdaImpl{
+		config: config,
 	}
 }
 
-func (rs Resource) String() string {
-	return string(rs)
-}
-
 func (exec *kubernetesExecutable) InNamespace(namespace string) (l *Lambda) {
-	if namespaced, err := exec.Rs.IsNamespaced(exec.Rs.GetApiGroupInterface(exec.getClientset())); !namespaced || err != nil {
+	if namespaced, err := exec.Rs.IsNamespaced(exec.Rs.GetApiGroupInterface(exec.clientset)); !namespaced || err != nil {
 		// Failhard
 		panic(fmt.Sprintf("abortion: %s is not a namespaced resource", exec.Rs))
 	}
@@ -227,17 +241,6 @@ func (exec *kubernetesExecutable) WatchAll() KubernetesWatch {
 	return &kubernetesWatchable{
 		exec: exec,
 	}
-}
-
-func (exec *kubernetesExecutable) getClientset() kubernetes.Interface {
-	if exec.clientset != nil {
-		return exec.clientset
-	}
-	clientset, err := kubernetes.NewForConfig(exec.restconfig)
-	if err != nil {
-		return nil
-	}
-	return clientset
 }
 
 func getListWatch(op kubernetesOpInterface) (*cache.ListWatch, error) {
@@ -310,7 +313,7 @@ func apiInterface(rs Resource, clientset kubernetes.Interface) (kubernetesVersio
 	case CronJob:
 		return clientset.BatchV2alpha1(), nil
 	default:
-		return nil, fmt.Errorf("unknown resource type %s", rs.String())
+		return nil, fmt.Errorf("unknown resource type %s", string(rs))
 	}
 }
 
@@ -389,7 +392,7 @@ func callRESTClientInterface(api kubernetesVersionInterface) rest.Interface {
 }
 
 func (exec *kubernetesExecutable) opListInterface() (<-chan kubernetesResource, error) {
-	op, err := opInterface(exec.Rs, exec.Namespace, exec.getClientset())
+	op, err := opInterface(exec.Rs, exec.Namespace, exec.clientset)
 	if err != nil {
 		return nil, err
 	}
@@ -397,7 +400,7 @@ func (exec *kubernetesExecutable) opListInterface() (<-chan kubernetesResource, 
 }
 
 func (exec *kubernetesExecutable) opGetInterface(name string) (kubernetesResource, error) {
-	op, err := opInterface(exec.Rs, exec.Namespace, exec.getClientset())
+	op, err := opInterface(exec.Rs, exec.Namespace, exec.clientset)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +408,7 @@ func (exec *kubernetesExecutable) opGetInterface(name string) (kubernetesResourc
 }
 
 func (exec *kubernetesExecutable) opCreateInterface(item kubernetesResource) (kubernetesResource, error) {
-	op, err := opInterface(exec.Rs, exec.Namespace, exec.getClientset())
+	op, err := opInterface(exec.Rs, exec.Namespace, exec.clientset)
 	if err != nil {
 		return nil, err
 	}
@@ -413,7 +416,7 @@ func (exec *kubernetesExecutable) opCreateInterface(item kubernetesResource) (ku
 }
 
 func (exec *kubernetesExecutable) opUpdateInterface(item kubernetesResource) (kubernetesResource, error) {
-	op, err := opInterface(exec.Rs, exec.Namespace, exec.getClientset())
+	op, err := opInterface(exec.Rs, exec.Namespace, exec.clientset)
 	if err != nil {
 		return nil, err
 	}
@@ -421,7 +424,7 @@ func (exec *kubernetesExecutable) opUpdateInterface(item kubernetesResource) (ku
 }
 
 func (exec *kubernetesExecutable) opDeleteInterface(name string) error {
-	op, err := opInterface(exec.Rs, exec.Namespace, exec.getClientset())
+	op, err := opInterface(exec.Rs, exec.Namespace, exec.clientset)
 	if err != nil {
 		return err
 	}
@@ -429,7 +432,7 @@ func (exec *kubernetesExecutable) opDeleteInterface(name string) error {
 }
 
 func (exec *kubernetesExecutable) opWatchInterface(t watch.EventType) (<-chan kubernetesResource, error) {
-	op, err := opInterface(exec.Rs, exec.Namespace, exec.getClientset())
+	op, err := opInterface(exec.Rs, exec.Namespace, exec.clientset)
 	if err != nil {
 		return nil, err
 	}
@@ -450,7 +453,7 @@ func (exec *kubernetesExecutable) opWatchInterface(t watch.EventType) (<-chan ku
 }
 
 func (exec *kubernetesExecutable) opGetRESTClient() (rest.Interface, error) {
-	api, err := apiInterface(exec.Rs, exec.getClientset())
+	api, err := apiInterface(exec.Rs, exec.clientset)
 	if err != nil {
 		return nil, err
 	}
