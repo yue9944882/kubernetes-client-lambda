@@ -79,25 +79,25 @@ func (wm *watchManager) unregisterFunc(rs Resource, ns string, t watch.EventType
 }
 
 func (wm *watchManager) preStop(rs Resource, ns string) {
-	if _, exists := wm.watchStopChs[rs.String()]; !exists {
-		wm.watchStopChs[rs.String()] = make(namespacedEntries)
+	if _, exists := wm.watchStopChs[string(rs)]; !exists {
+		wm.watchStopChs[string(rs)] = make(namespacedEntries)
 	}
 	ch := make(chan struct{}, watchEventMaxBufSize)
-	if e, exists := wm.watchStopChs[rs.String()][ns]; exists {
+	if e, exists := wm.watchStopChs[string(rs)][ns]; exists {
 		e.stopCh <- struct{}{}
 		close(e.stopCh)
 		e.stopCh = ch
 		return
 	}
-	wm.watchStopChs[rs.String()][ns] = &watchEntry{
+	wm.watchStopChs[string(rs)][ns] = &watchEntry{
 		stopCh:         ch,
 		watchFunctions: []watchFunction{},
 	}
 }
 
 func (wm *watchManager) getEntry(rs Resource, ns string) *watchEntry {
-	if _, exists := wm.watchStopChs[rs.String()]; !exists {
-		wm.watchStopChs[rs.String()] = make(namespacedEntries)
+	if _, exists := wm.watchStopChs[string(rs)]; !exists {
+		wm.watchStopChs[string(rs)] = make(namespacedEntries)
 	}
-	return wm.watchStopChs[rs.String()][ns]
+	return wm.watchStopChs[string(rs)][ns]
 }

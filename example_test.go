@@ -27,7 +27,7 @@ func ExampleLambda_OutOfCluster() {
 	}
 
 	count := 0
-	kubernetes.Pod.OutOfCluster(config).InNamespace("devops").NameEqual("test-pod").Each(
+	kubernetes.OutOfCluster(config).Type(kubernetes.Pod).InNamespace("devops").NameEqual("test-pod").Each(
 		func(pod *api_v1.Pod) {
 			count++
 		},
@@ -37,7 +37,7 @@ func ExampleLambda_OutOfCluster() {
 
 func ExampleLambda_InCluster() {
 	count := 0
-	kubernetes.Pod.InCluster().InNamespace("devops").Each(func(pod *api_v1.Pod) {
+	kubernetes.InCluster().Type(kubernetes.Pod).InNamespace("devops").Each(func(pod *api_v1.Pod) {
 		count++
 		fmt.Println(pod.Name)
 	})
@@ -60,7 +60,7 @@ func ExampleLambda_Watch() {
 	}
 
 	count := 0
-	kubernetes.Pod.OutOfCluster(config).InNamespace("devops").NameEqual("test-pod").Each(
+	kubernetes.OutOfCluster(config).Type(kubernetes.Pod).InNamespace("devops").NameEqual("test-pod").Each(
 		func(pod *api_v1.Pod) {
 			count++
 		},

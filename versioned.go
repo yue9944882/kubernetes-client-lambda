@@ -129,29 +129,12 @@ func getAllRuntimeObject() []runtime.Object {
 
 		// storage
 		StorageClass.GetObject(),
-		// VolumeAttachment.GetObject(),
-
-		// settings
-		// PodPreset.GetObject(),
 
 		// network
 		NetworkPolicy.GetObject(),
 
 		// autoscaling
 		HorizontalPodAutoscaler.GetObject(),
-
-		// authentication
-
-		// admissionregistration
-		// InitializerConfiguration.GetObject(),
-		// MutatingWebhookConfiguration.GetObject(),
-		// ValidatingWebhookConfiguration.GetObject(),
-
-		// policy
-		// PodDisruptionBudget.GetObject(),
-
-		// scheduling
-		// PriorityClass.GetObject(),
 	}
 }
 
@@ -228,13 +211,6 @@ func (rs Resource) GetObject() runtime.Object {
 	case StorageClass:
 		return &api_store_v1.StorageClass{}
 
-	// case VolumeAttachment:
-	// 	return &api_store_v1alpha1.VolumeAttachment{}
-
-	// settings
-	// case PodPreset:
-	//	return &api_settings_v1alpha1.PodPreset{}
-
 	// network
 	case NetworkPolicy:
 		return &api_network_v1.NetworkPolicy{}
@@ -243,29 +219,92 @@ func (rs Resource) GetObject() runtime.Object {
 	case HorizontalPodAutoscaler:
 		return &api_autoscale_v1.HorizontalPodAutoscaler{}
 
-	// authentication
-
-	// admissionregistration
-	// case InitializerConfiguration:
-	// 	return &api_admission_v1alpha1.InitializerConfiguration{}
-	// case MutatingWebhookConfiguration:
-	// 	return &api_admission_v1beta1.MutatingWebhookConfiguration{}
-	// case ValidatingWebhookConfiguration:
-	// 	return &api_admission_v1beta1.ValidatingWebhookConfiguration{}
-
-	// certificates
-
-	// policy
-	// case PodDisruptionBudget:
-	//	return &api_policy_v1beta1.PodDisruptionBudget{}
-
-	// scheduling
-	// case PriorityClass:
-	//	return &api_scheduling_v1alpha1.PriorityClass{}
-
 	default:
 		return nil
 	}
+}
+
+func getResourceFromObject(t reflect.Type) (Resource, error) {
+	switch t {
+	// core
+	case reflect.TypeOf(Pod.GetObject()):
+		return Pod, nil
+	case reflect.TypeOf(Namespace.GetObject()):
+		return Namespace, nil
+	case reflect.TypeOf(Node.GetObject()):
+		return Node, nil
+	case reflect.TypeOf(Event.GetObject()):
+		return Event, nil
+	case reflect.TypeOf(Service.GetObject()):
+		return Service, nil
+	case reflect.TypeOf(Endpoints.GetObject()):
+		return Endpoints, nil
+	case reflect.TypeOf(LimitRange.GetObject()):
+		return LimitRange, nil
+	case reflect.TypeOf(Secret.GetObject()):
+		return Secret, nil
+	case reflect.TypeOf(ConfigMap.GetObject()):
+		return ConfigMap, nil
+	case reflect.TypeOf(ServiceAccout.GetObject()):
+		return ServiceAccout, nil
+	case reflect.TypeOf(PodTemplate.GetObject()):
+		return PodTemplate, nil
+	case reflect.TypeOf(ResourceQuota.GetObject()):
+		return ResourceQuota, nil
+	case reflect.TypeOf(PersistentVolume.GetObject()):
+		return PersistentVolume, nil
+	case reflect.TypeOf(PersistentVolumeClaim.GetObject()):
+		return PersistentVolumeClaim, nil
+	case reflect.TypeOf(ReplicationController.GetObject()):
+		return ReplicationController, nil
+
+	// extensions
+	case reflect.TypeOf(Ingress.GetObject()):
+		return Ingress, nil
+	case reflect.TypeOf(ReplicaSet.GetObject()):
+		return ReplicaSet, nil
+	case reflect.TypeOf(Deployment.GetObject()):
+		return Deployment, nil
+	case reflect.TypeOf(DaemonSet.GetObject()):
+		return DaemonSet, nil
+	case reflect.TypeOf(PodSecurityPolicy.GetObject()):
+		return PodSecurityPolicy, nil
+
+	// apps
+	case reflect.TypeOf(StatefulSet.GetObject()):
+		return StatefulSet, nil
+	case reflect.TypeOf(ControllerRevision.GetObject()):
+		return ControllerRevision, nil
+
+	// rbac
+	case reflect.TypeOf(ClusterRole.GetObject()):
+		return ClusterRole, nil
+	case reflect.TypeOf(ClusterRoleBinding.GetObject()):
+		return ClusterRoleBinding, nil
+	case reflect.TypeOf(Role.GetObject()):
+		return Role, nil
+	case reflect.TypeOf(RoleBinding.GetObject()):
+		return RoleBinding, nil
+
+	// batch
+	case reflect.TypeOf(Job.GetObject()):
+		return Job, nil
+	case reflect.TypeOf(CronJob.GetObject()):
+		return CronJob, nil
+
+	// storage
+	case reflect.TypeOf(StorageClass.GetObject()):
+		return StorageClass, nil
+
+	// network
+	case reflect.TypeOf(NetworkPolicy.GetObject()):
+		return NetworkPolicy, nil
+
+	// autoscaling
+	case reflect.TypeOf(HorizontalPodAutoscaler.GetObject()):
+		return HorizontalPodAutoscaler, nil
+	}
+	return "", fmt.Errorf("unrecognized obj type: %#v", t.String())
 }
 
 func opInterface(rs Resource, namespace string, clientset kubernetes.Interface) (kubernetesOpInterface, error) {
