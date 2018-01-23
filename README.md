@@ -38,7 +38,7 @@ With KCL, you can operate kubernetes resources like this example:
 import kubernetes "github.com/yue9944882/kubernetes-client-lambda"
 
 // In-Cluster example
-kubernetes.ReplicaSet.InCluster().InNamespace("test").NamePrefix("foo-").Map(func(rs *api_ext_v1.ReplicaSet) rs*api_ext_v1.ReplicaSet {
+kubernetes.InCluster().Type(kubernetes.ReplicaSet).InNamespace("test").NamePrefix("foo-").Map(func(rs *api_ext_v1.ReplicaSet) rs*api_ext_v1.ReplicaSet {
     // Edit in-place or clone a new one
     rs.Meta.Labels["foo-label1"] = "test" 
     return rs
@@ -46,7 +46,7 @@ kubernetes.ReplicaSet.InCluster().InNamespace("test").NamePrefix("foo-").Map(fun
 
 
 // Out-Of-Cluster example
-kubernetes.Pod.OutOfCluster(config).InNamespace("devops").NameEqual("test-pod").Each(
+kubernetes.OutOfCluster(config).Type(kubernetes.Pod).InNamespace("devops").NameEqual("test-pod").Each(
     func(pod *api_v1.Pod) {
         count++
     },
@@ -59,7 +59,7 @@ As the following example is shown, Calling `Mock()` on Kubernetes Type Enumerati
 ```go
 import kubernetes "github.com/yue9944882/kubernetes-client-lambda"
 
-kubernetes.ReplicaSet.Mock().InNamespace("test").Add(
+kubernetes.Mock().Type(kubernetes.ReplicaSet).InNamespace("test").Add(
     // An anonymous function simply returns a pointer to kubernetes resource 
     // Returned objects will be added to stream
     func(){
@@ -76,10 +76,10 @@ Also watching the changes can be easier via KCL's wrapping of client-go's inform
 import kubernetes "github.com/yue9944882/kubernetes-client-lambda"
 import "k8s.io/apimachinery/pkg/watch"
 
-var kl KubernetesLambda = kubernetes.ReplicaSet.InCluster()
-// kl = kubernetes.ReplicaSet.Mock()
+var kcl KubernetesClientLambda = kubernetes.InCluster()
+// kcl = kubernetes.Mock()
 
-kl.WatchNamespace("default").Register(watch.Added, func(rs *api_v1.ReplicaSet){
+kcl.Type(kubernetes.ReplicaSet).WatchNamespace("default").Register(watch.Added, func(rs *api_v1.ReplicaSet){
     fmt.Println(rs.Name)
 })
 ```
