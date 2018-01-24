@@ -46,7 +46,7 @@ kubernetes.InCluster().Type(kubernetes.ReplicaSet).InNamespace("test").NamePrefi
 
 
 // Out-Of-Cluster example
-kubernetes.OutOfCluster(config).Type(kubernetes.Pod).InNamespace("devops").NameEqual("test-pod").Each(
+kubernetes.Pod.OutOfClusterDefault().InNamespace("devops").NameEqual("test-pod").Each(
     func(pod *api_v1.Pod) {
         count++
     },
