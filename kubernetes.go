@@ -3,6 +3,7 @@ package lambda
 import (
 	"errors"
 	"fmt"
+	"os"
 	"reflect"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 // Resource is kubernetes resource enumeration hiding api version
@@ -182,6 +184,32 @@ func InCluster() KubernetesClientLambda {
 func OutOfCluster(config *rest.Config) KubernetesClientLambda {
 	return &KubernetesClientLambdaImpl{
 		config: config,
+	}
+}
+
+// OutOfClusterDefault loads configuration from ~/.kube/config
+func OutOfClusterDefault() KubernetesClientLambda {
+	return OutOfClusterInContext("")
+}
+
+// OutOfClusterInContext is used to switch context of multi-cluster kubernetes
+func OutOfClusterInContext(context string) KubernetesClientLambda {
+	config, err := clientcmd.LoadFromFile(os.Getenv("HOME") + "/.kube/config")
+	if err != nil {
+		panic(err)
+	}
+	if config == nil || config.Contexts == nil {
+		panic("something's wrong with kube config file")
+	}
+	if context != "" {
+		config.CurrentContext = context
+	}
+	clientConfig, err := clientcmd.NewDefaultClientConfig(*config, &clientcmd.ConfigOverrides{}).ClientConfig()
+	if err != nil {
+		panic(err)
+	}
+	return &KubernetesClientLambdaImpl{
+		config: clientConfig,
 	}
 }
 
