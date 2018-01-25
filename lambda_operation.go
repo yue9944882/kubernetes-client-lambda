@@ -221,6 +221,8 @@ func (lambda *Lambda) UpdateIfExist() (updated bool, err error) {
 
 // Sync automatically decides to create / update a resource
 // If the resource doesn't exist,
+// DO NOT USE THIS: TODO: resolve critical BUG!!
+/*
 func (lambda *Lambda) UpdateOrCreate() (success bool, err error) {
 	if !lambda.NoError() {
 		return false, &ErrMultiLambdaFailure{
@@ -252,3 +254,4 @@ func (lambda *Lambda) UpdateOrCreate() (success bool, err error) {
 	success = updated || created
 	return
 }
+*/
