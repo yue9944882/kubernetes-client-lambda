@@ -184,7 +184,7 @@ func TestKubernetesOperation(t *testing.T) {
 		pod.Labels["l1"] = "b1"
 		tmppod = &pod
 		return &pod
-	}).UpdateOrCreate()
+	}).CreateIfNotExist()
 	assert.Equal(t, true, ok, "Failed to create pod")
 	assert.Equal(t, "b1", tmppod.Labels["l1"], "Label mismatched")
 	assert.NoError(t, err, "Some error")
