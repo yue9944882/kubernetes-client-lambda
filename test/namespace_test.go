@@ -10,7 +10,7 @@ import (
 )
 
 func TestNamespaceOperation(t *testing.T) {
-	ok, err := kubernetes.OutOfCluster(restconfig).Type(kubernetes.Namespace).All().Any(
+	ok, err := kubernetes.OutOfCluster(restconfig).Type(kubernetes.Namespace).InNamespace("").Any(
 		func(ns *api_v1.Namespace) bool {
 			return ns.Name == "default"
 		},
@@ -18,7 +18,7 @@ func TestNamespaceOperation(t *testing.T) {
 	assert.Equal(t, true, ok, "namespace doesnt' exist")
 	assert.NoError(t, err, "some error")
 
-	success, err := kubernetes.OutOfCluster(restconfig).Type(kubernetes.Namespace).All().Add(func() *api_v1.Namespace {
+	success, err := kubernetes.OutOfCluster(restconfig).Type(kubernetes.Namespace).InNamespace("").Add(func() *api_v1.Namespace {
 		var ns api_v1.Namespace
 		ns.APIVersion = "v1"
 		ns.Name = "new"

@@ -68,6 +68,16 @@ kubernetes.Mock().Type(kubernetes.ReplicaSet).InNamespace("test").Add(
         return &rs
     },
 ).Create()
+
+// For non-namespace resources, leave namespace to "" in InNamespace call
+kubernetes.Mock().Type(kubernetes.Namespace).InNamespace("").Add(
+    // An anonymous function simply returns a pointer to kubernetes resource 
+    // Returned objects will be added to stream
+    func(){
+        ns.Name = "devops"
+        return &ns
+    },
+).Create()
 ```
 
 <a name="mock-example"></a>

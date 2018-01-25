@@ -64,16 +64,6 @@ type KubernetesLambda interface {
 	// InNamespace list the resources in the namespace with a default pager
 	// and put them into lambda pipeline.
 	InNamespace(namespace string) *Lambda
-
-	// All list all the resources.
-	// ** Note that this method should only be used for resource which doesn't
-	// ** belong to any namespace. e.g. Node, Namespace..
-	All() *Lambda
-
-	// WatchAll watches the change from resources.
-	// ** Note that this method should only be used for resource which doesn't
-	// ** belong to any namespace. e.g. Node, Namespace..
-	WatchAll() KubernetesWatch
 }
 
 // KubernetesWatch provides watch registry for kubernetes
@@ -214,10 +204,6 @@ func OutOfClusterInContext(context string) KubernetesClientLambda {
 }
 
 func (exec *kubernetesExecutable) InNamespace(namespace string) (l *Lambda) {
-	if namespaced, err := exec.Rs.IsNamespaced(exec.Rs.GetApiGroupInterface(exec.clientset)); !namespaced || err != nil {
-		// Failhard
-		panic(fmt.Sprintf("abortion: %s is not a namespaced resource", exec.Rs))
-	}
 	exec.Namespace = namespace
 	ch := make(chan kubernetesResource)
 	l = &Lambda{
@@ -266,6 +252,7 @@ func (exec *kubernetesExecutable) WatchNamespace(namespace string) KubernetesWat
 }
 
 func (exec *kubernetesExecutable) WatchAll() KubernetesWatch {
+	exec.Namespace = ""
 	return &kubernetesWatchable{
 		exec: exec,
 	}

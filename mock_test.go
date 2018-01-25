@@ -32,7 +32,7 @@ func TestSimpleMock(t *testing.T) {
 }
 
 func TestNamespaceMock(t *testing.T) {
-	success, err := Mock().Type(Namespace).All().Add(func() *api_v1.Namespace {
+	success, err := Mock().Type(Namespace).InNamespace("").Add(func() *api_v1.Namespace {
 		var ns api_v1.Namespace
 		ns.Name = "testns"
 		return &ns
@@ -42,14 +42,14 @@ func TestNamespaceMock(t *testing.T) {
 	assert.NoError(t, err, "creation failure")
 
 	count := 0
-	Mock().Type(Namespace).All().Each(func(ns *api_v1.Namespace) {
+	Mock().Type(Namespace).InNamespace("").Each(func(ns *api_v1.Namespace) {
 		if ns != nil {
 			count++
 		}
 	})
 	assert.Equal(t, 2, count, "namespace not created")
 
-	deleted, err := Mock().Type(Namespace).All().Grep(func(ns *api_v1.Namespace) bool {
+	deleted, err := Mock().Type(Namespace).InNamespace("").Grep(func(ns *api_v1.Namespace) bool {
 		return ns.Name == "testns"
 	}).DeleteIfExist()
 	assert.Equal(t, true, deleted, "create success")
