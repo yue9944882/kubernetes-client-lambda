@@ -35,7 +35,7 @@ const (
 	ResourceQuota         Resource = "resourcequotas"
 	PersistentVolume      Resource = "persistentvolumes"
 	PersistentVolumeClaim Resource = "persistentvolumeclaims"
-	ReplicationController Resource = "ReplicationController"
+	ReplicationController Resource = "replicationcontrollers"
 
 	// extensions
 	Ingress           Resource = "ingresses"
@@ -45,7 +45,7 @@ const (
 	PodSecurityPolicy Resource = "podsecuritypolicies"
 
 	// apps
-	StatefulSet        Resource = "StatefulSet"
+	StatefulSet        Resource = "statefulsets"
 	ControllerRevision Resource = "controllerrevisions"
 
 	// rbac
@@ -55,11 +55,11 @@ const (
 	RoleBinding        Resource = "rolebindings"
 
 	// batch
-	Job     Resource = "Job"
-	CronJob Resource = "CronJob"
+	Job     Resource = "jobs"
+	CronJob Resource = "cronjobs"
 
 	// storage
-	StorageClass Resource = "StorageClass"
+	StorageClass Resource = "storageclasses"
 	// VolumeAttachment Resource = "volumeattachments"
 
 	// settings
