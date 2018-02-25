@@ -3,7 +3,6 @@ package lambda
 import (
 	"sync"
 
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -19,17 +18,15 @@ type KubernetesClientLambdaMock struct {
 
 func (kcl *KubernetesClientLambdaMock) Type(rs Resource) KubernetesLambda {
 	return &kubernetesExecutable{
-		clientset: kcl.clientset,
-		Namespace: meta_v1.NamespaceDefault,
-		Rs:        rs,
+		Rs: rs,
 	}
 }
 
-// Mock return a mock interface of lambda KubernetesClient
 // the mock KubernetesClient is statusful and if you want to reset its status then use MockReset
 func Mock() KubernetesClientLambda {
 	mutex.Lock()
 	defer mutex.Unlock()
+	initIndexer(mockclient)
 	return &KubernetesClientLambdaMock{
 		clientset: mockclient,
 	}

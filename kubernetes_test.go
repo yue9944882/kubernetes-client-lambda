@@ -105,7 +105,7 @@ func TestKubernetesInterface(t *testing.T) {
 	}
 
 	for _, resource := range resources {
-		obj := resource.GetObject()
+		obj := resource.GetObject().GetObjectKind().
 		assert.NotNil(t, obj, "Failed to get object from resource")
 		assert.NotEqual(t, "", resource, "Failed to get resource name")
 		op, err := opInterface(resource, "default", clientset)

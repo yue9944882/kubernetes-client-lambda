@@ -1,5 +1,15 @@
 package lambda
 
+import (
+	"bytes"
+
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/dynamic"
+)
+
 //********************************************************
 // Basic Operation
 //********************************************************
@@ -28,7 +38,7 @@ func (lambda *Lambda) Every(predicate Predicate) (bool, error) {
 		}
 	}
 	for item := range lambda.val {
-		if !callPredicate(predicate, item) {
+		if !predicate(item) {
 			return false, nil
 		}
 	}
@@ -43,7 +53,7 @@ func (lambda *Lambda) Any(predicate Predicate) (bool, error) {
 		}
 	}
 	for item := range lambda.val {
-		if callPredicate(predicate, item) {
+		if predicate(item) {
 			return true, nil
 		}
 	}
@@ -58,7 +68,7 @@ func (lambda *Lambda) Each(function Function) error {
 		}
 	}
 	for item := range lambda.val {
-		callFunction(function, item)
+		function(item)
 	}
 	return nil
 }
@@ -70,42 +80,44 @@ func (lambda *Lambda) Each(function Function) error {
 // Create creates every element remains in lambda collection
 // Returns true if every element is successfully created and lambda error chain
 // Fails if any element already exists
-func (lambda *Lambda) Create() (allCreated bool, err error) {
+func (lambda *Lambda) Create() (bool, error) {
 	if !lambda.NoError() {
 		return false, &ErrMultiLambdaFailure{
 			errors: lambda.Errors,
 		}
 	}
-	allCreated = true
-	lambda.op.opListInterface()
+	allCreated := true
 	for item := range lambda.val {
-		if _, err := lambda.op.opCreateInterface(item); err != nil {
-			allCreated = false
+		if err := create(lambda.clientInterface, lambda.rs, item); err != nil {
 			lambda.addError(err)
+			allCreated = false
 		}
 	}
 	if len(lambda.Errors) != 0 {
-		err = &ErrMultiLambdaFailure{
+		return false, &ErrMultiLambdaFailure{
 			errors: lambda.Errors,
 		}
 	}
-	return
+	return allCreated, nil
 }
 
 // CreateIfNotExist creates element in the lambda collection
 // Will not return false if any element fails to be created
-func (lambda *Lambda) CreateIfNotExist() (success bool, err error) {
+func (lambda *Lambda) CreateIfNotExist() (bool, error) {
 	if !lambda.NoError() {
-		err = &ErrMultiLambdaFailure{
+		return false, &ErrMultiLambdaFailure{
 			errors: lambda.Errors,
 		}
-		return false, err
 	}
 	created := false
 	searchHit := false
 	for item := range lambda.val {
-		if _, err := lambda.op.opGetInterface(getNameOfResource(item)); err != nil {
-			if _, err := lambda.op.opCreateInterface(item); err != nil {
+		accessor, err := meta.Accessor(item)
+		if err != nil {
+			return false, err
+		}
+		if obj, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err != nil {
+			if err := create(lambda.clientInterface, lambda.rs, obj); err != nil {
 				lambda.addError(err)
 			} else {
 				created = true
@@ -115,48 +127,51 @@ func (lambda *Lambda) CreateIfNotExist() (success bool, err error) {
 		}
 	}
 	if len(lambda.Errors) != 0 {
-		err = &ErrMultiLambdaFailure{
+		return false, &ErrMultiLambdaFailure{
 			errors: lambda.Errors,
 		}
 	}
-	success = searchHit || created
-	return
+	return searchHit || created, nil
 }
 
 // Delete remove every element in the lambda collection
-func (lambda *Lambda) Delete() (deleted bool, err error) {
+func (lambda *Lambda) Delete() (bool, error) {
 	if !lambda.NoError() {
 		return false, &ErrMultiLambdaFailure{
 			errors: lambda.Errors,
 		}
 	}
-	deleted = false
+	deleted := false
 	for item := range lambda.val {
-		if err := lambda.op.opDeleteInterface(getNameOfResource(item)); err != nil {
+		if err := delete(lambda.clientInterface, lambda.rs, item); err != nil {
 			lambda.addError(err)
 		} else {
 			deleted = true
 		}
 	}
 	if len(lambda.Errors) != 0 {
-		err = &ErrMultiLambdaFailure{
+		return false, &ErrMultiLambdaFailure{
 			errors: lambda.Errors,
 		}
 	}
-	return
+	return deleted, nil
 }
 
 // DeleteIfExist delete elements in the lambda collection if it exists
-func (lambda *Lambda) DeleteIfExist() (deleted bool, err error) {
+func (lambda *Lambda) DeleteIfExist() (bool, error) {
 	if !lambda.NoError() {
 		return false, &ErrMultiLambdaFailure{
 			errors: lambda.Errors,
 		}
 	}
-	deleted = false
+	deleted := false
 	for item := range lambda.val {
-		if _, err := lambda.op.opGetInterface(getNameOfResource(item)); err == nil {
-			if err := lambda.op.opDeleteInterface(getNameOfResource(item)); err != nil {
+		accessor, err := meta.Accessor(item)
+		if err != nil {
+			return false, err
+		}
+		if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
+			if err := delete(lambda.clientInterface, lambda.rs, item); err != nil {
 				lambda.addError(err)
 			} else {
 				deleted = true
@@ -164,11 +179,11 @@ func (lambda *Lambda) DeleteIfExist() (deleted bool, err error) {
 		}
 	}
 	if len(lambda.Errors) != 0 {
-		err = &ErrMultiLambdaFailure{
+		return false, &ErrMultiLambdaFailure{
 			errors: lambda.Errors,
 		}
 	}
-	return
+	return deleted, nil
 }
 
 // Update updates elements to kuberentes resources
@@ -180,7 +195,7 @@ func (lambda *Lambda) Update() (updated bool, err error) {
 	}
 	updated = false
 	for item := range lambda.val {
-		if _, err := lambda.op.opUpdateInterface(item); err != nil {
+		if err := update(lambda.clientInterface, lambda.rs, item); err != nil {
 			lambda.addError(err)
 		} else {
 			updated = true
@@ -203,8 +218,12 @@ func (lambda *Lambda) UpdateIfExist() (updated bool, err error) {
 	}
 	updated = false
 	for item := range lambda.val {
-		if _, err := lambda.op.opGetInterface(getNameOfResource(item)); err == nil {
-			if _, err := lambda.op.opUpdateInterface(item); err != nil {
+		accessor, err := meta.Accessor(item)
+		if err != nil {
+			return false, err
+		}
+		if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
+			if err := update(lambda.clientInterface, lambda.rs, item); err != nil {
 				lambda.addError(err)
 			} else {
 				updated = true
@@ -255,3 +274,60 @@ func (lambda *Lambda) UpdateOrCreate() (success bool, err error) {
 	return
 }
 */
+
+func castObjectToUnstructured(object runtime.Object) (*unstructured.Unstructured, error) {
+	buffer := new(bytes.Buffer)
+	err := unstructured.UnstructuredJSONScheme.Encode(object, buffer)
+	if err != nil {
+		return nil, err
+	}
+	obj, _, err := unstructured.UnstructuredJSONScheme.Decode(buffer.Bytes(), nil, nil)
+	if err != nil {
+		return nil, err
+	}
+	return obj.(*unstructured.Unstructured), nil
+}
+
+func create(i dynamic.Interface, rs Resource, object runtime.Object) error {
+	api := getResouceIndexerInstance().GetAPIResource(rs)
+	accessor, err := meta.Accessor(object)
+	if err != nil {
+		return err
+	}
+	tmpObj, err := castObjectToUnstructured(object)
+	if err != nil {
+		return err
+	}
+	if _, err := i.Resource(&api, accessor.GetNamespace()).Create(tmpObj); err != nil {
+		return err
+	}
+	return nil
+}
+
+func delete(i dynamic.Interface, rs Resource, object runtime.Object) error {
+	api := getResouceIndexerInstance().GetAPIResource(rs)
+	accessor, err := meta.Accessor(object)
+	if err != nil {
+		return err
+	}
+	if err := i.Resource(&api, accessor.GetNamespace()).Delete(accessor.GetName(), &metav1.DeleteOptions{}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func update(i dynamic.Interface, rs Resource, object runtime.Object) error {
+	api := getResouceIndexerInstance().GetAPIResource(rs)
+	accessor, err := meta.Accessor(object)
+	if err != nil {
+		return err
+	}
+	tmpObj, err := castObjectToUnstructured(object)
+	if err != nil {
+		return err
+	}
+	if _, err := i.Resource(&api, accessor.GetNamespace()).Update(tmpObj); err != nil {
+		return err
+	}
+	return nil
+}

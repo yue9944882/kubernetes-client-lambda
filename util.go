@@ -6,17 +6,6 @@ import (
 	"regexp"
 )
 
-func getNameOfResource(kr kubernetesResource) string {
-	return reflect.Indirect(
-		reflect.ValueOf(kr),
-	).FieldByName("Name").String()
-}
-
-func isNamedspaced(kr kubernetesResource) bool {
-	_, ok := reflect.Indirect(reflect.ValueOf(kr)).Type().FieldByName("Namespace")
-	return ok
-}
-
 func annotationMap(i interface{}) (map[string]string, error) {
 	// Get type
 	t := reflect.TypeOf(i)

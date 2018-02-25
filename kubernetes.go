@@ -1,33 +1,34 @@
 package lambda
 
 import (
-	"errors"
-	"fmt"
 	"os"
-	"reflect"
-	"time"
+	"sync"
 
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 // Resource is kubernetes resource enumeration hiding api version
 type Resource string
 
-type kubernetesResource interface{}
 type kubernetesOpInterface interface{}
 type kubernetesApiGroupInterface interface{}
 type kubernetesVersionInterface interface{}
 
 type kubernetesExecutable struct {
-	clientset kubernetes.Interface
-	Namespace string
-	Rs        Resource
+	getFunc         func(namespace, name string) (runtime.Object, error)
+	listFunc        func(namespace string) ([]runtime.Object, error)
+	Rs              Resource
+	clientInterface dynamic.Interface
 }
 
 type kubernetesWatchable struct {
@@ -40,18 +41,72 @@ type KubernetesClientLambda interface {
 }
 
 type KubernetesClientLambdaImpl struct {
-	config *rest.Config
+	config          *rest.Config
+	informerFactory informers.SharedInformerFactory
+	clientPool      dynamic.ClientPool
 }
 
 func (kcl *KubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
-	clientset, err := kubernetes.NewForConfig(kcl.config)
+	gvr := getResouceIndexerInstance().GetGroupVersionResource(rs)
+	gvk := getResouceIndexerInstance().GetGroupVersionKind(rs)
+	api := getResouceIndexerInstance().GetAPIResource(rs)
+	i, err := kcl.clientPool.ClientForGroupVersionResource(gvr)
 	if err != nil {
 		panic(err)
 	}
 	return &kubernetesExecutable{
-		clientset: clientset,
-		Namespace: meta_v1.NamespaceDefault,
-		Rs:        rs,
+		getFunc: func(namespace, name string) (runtime.Object, error) {
+			if kcl.informerFactory != nil {
+				informer, err := kcl.informerFactory.ForResource(gvr)
+				if err != nil {
+					return nil, err
+				}
+				return informer.Lister().ByNamespace(namespace).Get(name)
+			}
+			tmpObj, err := i.Resource(&api, namespace).Get(name, metav1.GetOptions{})
+			if err != nil {
+				return nil, err
+			}
+			obj, err := scheme.Scheme.New(gvk)
+			if err != nil {
+				panic(err)
+			}
+			if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
+				return nil, err
+			}
+			return obj, nil
+		},
+		listFunc: func(namespace string) ([]runtime.Object, error) {
+			if kcl.informerFactory != nil {
+				informer, err := kcl.informerFactory.ForResource(gvr)
+				if err != nil {
+					return nil, err
+				}
+				return informer.Lister().ByNamespace(namespace).List(labels.Everything())
+			}
+			tmpObjList, err := i.Resource(&api, namespace).List(metav1.ListOptions{})
+			if err != nil {
+				return nil, err
+			}
+			tmpObjs, err := meta.ExtractList(tmpObjList)
+			if err != nil {
+				return nil, err
+			}
+			retObjs := []runtime.Object{}
+			for _, tmpObj := range tmpObjs {
+				obj, err := scheme.Scheme.New(gvk)
+				if err != nil {
+					panic(err)
+				}
+				if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
+					return nil, err
+				}
+				retObjs = append(retObjs, obj)
+			}
+			return retObjs, nil
+		},
+		Rs:              rs,
+		clientInterface: i,
 	}
 }
 
@@ -59,11 +114,11 @@ func (kcl *KubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 type KubernetesLambda interface {
 	// WatchNamespace watches a namespace.
 	// register or unregister "function"-typed lambda.
-	WatchNamespace(namespace string) KubernetesWatch
+	// WatchNamespace(namespaces ...string) KubernetesWatch
 
 	// InNamespace list the resources in the namespace with a default pager
 	// and put them into lambda pipeline.
-	InNamespace(namespace string) *Lambda
+	InNamespace(namespaces ...string) *Lambda
 }
 
 // KubernetesWatch provides watch registry for kubernetes
@@ -72,6 +127,7 @@ type KubernetesWatch interface {
 	Unregister(t watch.EventType, function Function) error
 }
 
+/*
 // Register appends the function and it will be invoked as long as any event matches
 // the event type arrives.
 func (watchable *kubernetesWatchable) Register(t watch.EventType, function Function) error {
@@ -171,7 +227,22 @@ func InCluster() KubernetesClientLambda {
 
 // OutOfCluster establishe connection witha kube-apiserver by loading specific
 // kube-config.
-func OutOfCluster(config *rest.Config) KubernetesClientLambda {
+func OutOfCluster(config *rest.Config) *KubernetesClientLambdaImpl {
+	return getKCLFromConfig(config)
+}
+*/
+
+func getKCLFromConfig(config *rest.Config) *KubernetesClientLambdaImpl {
+	// Resource discovery
+	// Must succeed: panics on failure
+	func() {
+		clientset, err := kubernetes.NewForConfig(config)
+		if err != nil {
+			panic(err)
+		}
+		initIndexer(clientset)
+	}()
+
 	return &KubernetesClientLambdaImpl{
 		config: config,
 	}
@@ -198,279 +269,58 @@ func OutOfClusterInContext(context string) KubernetesClientLambda {
 	if err != nil {
 		panic(err)
 	}
-	return &KubernetesClientLambdaImpl{
-		config: clientConfig,
-	}
+	return getKCLFromConfig(clientConfig)
 }
 
-func (exec *kubernetesExecutable) InNamespace(namespace string) (l *Lambda) {
-	exec.Namespace = namespace
-	ch := make(chan kubernetesResource)
-	l = &Lambda{
-		op:  exec,
+func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
+
+	if len(namespaces) == 0 {
+		namespaces = []string{metav1.NamespaceAll}
+	}
+
+	ch := make(chan runtime.Object)
+
+	l := &Lambda{
+		rs:  exec.Rs,
 		val: ch,
 	}
-	go func() {
-		defer close(ch)
-		resources, err := exec.opListInterface()
-		if err != nil {
-			l.addError(err)
-			return
-		}
-		for resource := range resources {
-			ch <- resource
-		}
-	}()
+
+	var wg sync.WaitGroup
+	for _, namespace := range namespaces {
+		go func() {
+			wg.Add(1)
+			objs, err := exec.listFunc(namespace)
+			if err != nil {
+				panic(err)
+			}
+			for _, obj := range objs {
+				ch <- obj
+			}
+			wg.Done()
+		}()
+	}
+	wg.Wait()
+	close(ch)
 	return l
 }
 
-func (exec *kubernetesExecutable) All() (l *Lambda) {
-	ch := make(chan kubernetesResource)
-	l = &Lambda{
-		op:  exec,
-		val: ch,
-	}
-	go func() {
-		defer close(ch)
-		resources, err := exec.opListInterface()
-		if err != nil {
-			l.addError(err)
-			return
-		}
-		for resource := range resources {
-			ch <- resource
-		}
-	}()
-	return l
-}
-
+/*
 func (exec *kubernetesExecutable) WatchNamespace(namespace string) KubernetesWatch {
 	exec.Namespace = namespace
 	return &kubernetesWatchable{
 		exec: exec,
 	}
 }
+*/
 
-func (exec *kubernetesExecutable) WatchAll() KubernetesWatch {
-	exec.Namespace = ""
-	return &kubernetesWatchable{
-		exec: exec,
+func listResourceViaInformer(informerFactory informers.SharedInformerFactory, rs Resource, namespace string) (objs []runtime.Object, err error) {
+	gvr := getResouceIndexerInstance().GetGroupVersionResource(rs)
+	informer, err := informerFactory.ForResource(gvr)
+	isNamespaced := getResouceIndexerInstance().IsNamespaced(rs)
+	if isNamespaced {
+		objs, err = informer.Lister().ByNamespace(namespace).List(labels.Everything())
+	} else {
+		objs, err = informer.Lister().List(labels.Everything())
 	}
-}
-
-func getListWatch(op kubernetesOpInterface) (*cache.ListWatch, error) {
-	listFunc := func(options meta_v1.ListOptions) (runtime.Object, error) {
-		method := reflect.ValueOf(op).MethodByName("List")
-		ret := method.Call([]reflect.Value{
-			reflect.ValueOf(meta_v1.ListOptions{}),
-		})
-		if err := ret[1].Interface(); err != nil {
-			return nil, err.(error)
-		}
-		return ret[0].Interface().(runtime.Object), nil
-	}
-	watchFunc := func(options meta_v1.ListOptions) (watch.Interface, error) {
-		method := reflect.ValueOf(op).MethodByName("Watch")
-		ret := method.Call([]reflect.Value{
-			reflect.ValueOf(meta_v1.ListOptions{}),
-		})
-		if err := ret[1].Interface(); err != nil {
-			return nil, err.(error)
-		}
-		return ret[0].Interface().(watch.Interface), nil
-	}
-	return &cache.ListWatch{
-		ListFunc:  listFunc,
-		WatchFunc: watchFunc,
-	}, nil
-}
-
-func apiInterface(rs Resource, clientset kubernetes.Interface) (kubernetesVersionInterface, error) {
-	if clientset == nil {
-		return nil, errors.New("nil clientset proceed")
-	}
-	switch rs {
-	case Namespace:
-		return clientset.CoreV1(), nil
-	case Node:
-		return clientset.CoreV1(), nil
-	case StorageClass:
-		return clientset.StorageV1(), nil
-	// Resource in a namespace
-
-	// core/v1
-	case Pod:
-		return clientset.CoreV1(), nil
-	case ConfigMap:
-		return clientset.CoreV1(), nil
-	case Service:
-		return clientset.CoreV1(), nil
-	case Endpoints:
-		return clientset.CoreV1(), nil
-	case LimitRange:
-		return clientset.CoreV1(), nil
-	case Ingress:
-		return clientset.ExtensionsV1beta1(), nil
-	case ReplicaSet:
-		return clientset.ExtensionsV1beta1(), nil
-	case Deployment:
-		return clientset.ExtensionsV1beta1(), nil
-	case DaemonSet:
-		return clientset.ExtensionsV1beta1(), nil
-	case StatefulSet:
-		return clientset.AppsV1beta1(), nil
-	case ReplicationController:
-		return clientset.CoreV1(), nil
-	case Secret:
-		return clientset.CoreV1(), nil
-	case Job:
-		return clientset.BatchV1(), nil
-	case CronJob:
-		return clientset.BatchV2alpha1(), nil
-	default:
-		return nil, fmt.Errorf("unknown resource type %s", string(rs))
-	}
-}
-
-func callListInterface(op kubernetesOpInterface) (<-chan kubernetesResource, error) {
-	method := reflect.ValueOf(op).MethodByName("List")
-	pgr := &ListPager{
-		PageSize: 128,
-		PageFn:   method.Interface(),
-	}
-	return pgr.List(meta_v1.ListOptions{})
-}
-
-func callGetInterface(op kubernetesOpInterface, name string) (kubernetesResource, error) {
-	method := reflect.ValueOf(op).MethodByName("Get")
-	ret := method.Call([]reflect.Value{
-		reflect.ValueOf(name),
-		reflect.ValueOf(meta_v1.GetOptions{}),
-	})
-	if err := ret[1].Interface(); err != nil {
-		return nil, err.(error)
-	}
-	return ret[0].Interface(), nil
-}
-
-func callCreateInterface(op kubernetesOpInterface, item kubernetesResource) (kubernetesResource, error) {
-	method := reflect.ValueOf(op).MethodByName("Create")
-	ret := method.Call([]reflect.Value{
-		reflect.ValueOf(item),
-	})
-	if err := ret[1].Interface(); err != nil {
-		return nil, err.(error)
-	}
-	return ret[0].Interface(), nil
-}
-
-func callUpdateInterface(op kubernetesOpInterface, item kubernetesResource) (kubernetesResource, error) {
-	method := reflect.ValueOf(op).MethodByName("Update")
-	ret := method.Call([]reflect.Value{
-		reflect.ValueOf(item),
-	})
-	if err := ret[1].Interface(); err != nil {
-		return nil, err.(error)
-	}
-	return ret[0].Interface(), nil
-}
-
-func callDeleteInterface(op kubernetesOpInterface, name string) error {
-	method := reflect.ValueOf(op).MethodByName("Delete")
-	ret := method.Call([]reflect.Value{
-		reflect.ValueOf(name),
-		reflect.ValueOf(&meta_v1.DeleteOptions{}),
-	})
-	if err := ret[0].Interface(); err != nil {
-		return err.(error)
-	}
-	return nil
-}
-
-func callWatchInterface(op kubernetesOpInterface) (<-chan watch.Event, error) {
-	method := reflect.ValueOf(op).MethodByName("Watch")
-	ret := method.Call([]reflect.Value{
-		reflect.ValueOf(meta_v1.ListOptions{}),
-	})
-	if err := ret[1].Interface(); err != nil {
-		return nil, err.(error)
-	}
-	watcher := ret[0].Interface().(watch.Interface)
-	return watcher.ResultChan(), nil
-}
-
-func callRESTClientInterface(api kubernetesVersionInterface) rest.Interface {
-	method := reflect.ValueOf(api).MethodByName("RESTClient")
-	ret := method.Call([]reflect.Value{})
-	client := ret[0].Interface().(rest.Interface)
-	return client
-}
-
-func (exec *kubernetesExecutable) opListInterface() (<-chan kubernetesResource, error) {
-	op, err := opInterface(exec.Rs, exec.Namespace, exec.clientset)
-	if err != nil {
-		return nil, err
-	}
-	return callListInterface(op)
-}
-
-func (exec *kubernetesExecutable) opGetInterface(name string) (kubernetesResource, error) {
-	op, err := opInterface(exec.Rs, exec.Namespace, exec.clientset)
-	if err != nil {
-		return nil, err
-	}
-	return callGetInterface(op, name)
-}
-
-func (exec *kubernetesExecutable) opCreateInterface(item kubernetesResource) (kubernetesResource, error) {
-	op, err := opInterface(exec.Rs, exec.Namespace, exec.clientset)
-	if err != nil {
-		return nil, err
-	}
-	return callCreateInterface(op, item)
-}
-
-func (exec *kubernetesExecutable) opUpdateInterface(item kubernetesResource) (kubernetesResource, error) {
-	op, err := opInterface(exec.Rs, exec.Namespace, exec.clientset)
-	if err != nil {
-		return nil, err
-	}
-	return callUpdateInterface(op, item)
-}
-
-func (exec *kubernetesExecutable) opDeleteInterface(name string) error {
-	op, err := opInterface(exec.Rs, exec.Namespace, exec.clientset)
-	if err != nil {
-		return err
-	}
-	return callDeleteInterface(op, name)
-}
-
-func (exec *kubernetesExecutable) opWatchInterface(t watch.EventType) (<-chan kubernetesResource, error) {
-	op, err := opInterface(exec.Rs, exec.Namespace, exec.clientset)
-	if err != nil {
-		return nil, err
-	}
-	eventCh, err := callWatchInterface(op)
-	if err != nil {
-		return nil, err
-	}
-	rsCh := make(chan kubernetesResource)
-	go func() {
-		defer close(rsCh)
-		for event := range eventCh {
-			if event.Type == t {
-				rsCh <- event.Object
-			}
-		}
-	}()
-	return rsCh, nil
-}
-
-func (exec *kubernetesExecutable) opGetRESTClient() (rest.Interface, error) {
-	api, err := apiInterface(exec.Rs, exec.clientset)
-	if err != nil {
-		return nil, err
-	}
-	return callRESTClientInterface(api), nil
+	return
 }
