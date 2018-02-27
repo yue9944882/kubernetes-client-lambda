@@ -10,6 +10,6 @@ func TestSimpleClientSetDiscovery(t *testing.T) {
 	OutOfClusterDefault()
 	for _, resource := range GetResources() {
 		_, exist := indexerInstance.(*resourceIndexerImpl).store[resource]
-		assert.NotEmpty(t, exist, "resource index missing")
+		assert.NotEmpty(t, exist, "resource %s index missing", resource)
 	}
 }
