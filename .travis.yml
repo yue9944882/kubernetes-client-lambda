@@ -30,7 +30,6 @@ script:
 - kubectl create -f https://raw.githubusercontent.com/kubernetes/kubernetes/master/examples/storage/redis/redis-controller.yaml
 - kubectl get rc
 - kubectl get pods
-- go test ./test
 
 
 after_success:
