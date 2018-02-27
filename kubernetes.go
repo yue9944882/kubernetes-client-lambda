@@ -9,7 +9,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -29,21 +28,17 @@ type kubernetesExecutable struct {
 	clientInterface dynamic.Interface
 }
 
-type kubernetesWatchable struct {
-	exec *kubernetesExecutable
-}
-
 // KubernetesClientLambda provides manipulation interface for resources
 type KubernetesClientLambda interface {
 	Type(Resource) KubernetesLambda
 }
 
-type KubernetesClientLambdaImpl struct {
+type kubernetesClientLambdaImpl struct {
 	informerFactory informers.SharedInformerFactory
 	clientPool      dynamic.ClientPool
 }
 
-func (kcl *KubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
+func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 	gvr := getResouceIndexerInstance().GetGroupVersionResource(rs)
 	gvk := getResouceIndexerInstance().GetGroupVersionKind(rs)
 	api := getResouceIndexerInstance().GetAPIResource(rs)
@@ -114,127 +109,13 @@ func (kcl *KubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 
 // KubernetesLambda provides access entry function for kubernetes
 type KubernetesLambda interface {
-	// WatchNamespace watches a namespace.
-	// register or unregister "function"-typed lambda.
-	// WatchNamespace(namespaces ...string) KubernetesWatch
 
 	// InNamespace list the resources in the namespace with a default pager
 	// and put them into lambda pipeline.
 	InNamespace(namespaces ...string) *Lambda
 }
 
-// KubernetesWatch provides watch registry for kubernetes
-type KubernetesWatch interface {
-	Register(t watch.EventType, function Function) error
-	Unregister(t watch.EventType, function Function) error
-}
-
-/*
-// Register appends the function and it will be invoked as long as any event matches
-// the event type arrives.
-func (watchable *kubernetesWatchable) Register(t watch.EventType, function Function) error {
-	entry := getWatchManager().registerFunc(watchable.exec.Rs, watchable.exec.Namespace, t, function)
-	op, err := opInterface(watchable.exec.Rs, watchable.exec.Namespace, watchable.exec.clientset)
-	if err != nil {
-		return err
-	}
-
-	addFuncs := []Function{}
-	updateFuncs := []Function{}
-	deleteFuncs := []Function{}
-
-	for _, wf := range entry.watchFunctions {
-		switch wf.t {
-		case watch.Added:
-			addFuncs = append(addFuncs, wf.function.(Function))
-		case watch.Modified:
-			updateFuncs = append(updateFuncs, wf.function.(Function))
-		case watch.Deleted:
-			deleteFuncs = append(deleteFuncs, wf.function.(Function))
-		}
-	}
-
-	handlerFuncs := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj interface{}) {
-			for _, addf := range addFuncs {
-				callFunction(addf, obj)
-			}
-		},
-		UpdateFunc: func(oldObj, newObj interface{}) {
-			for _, updatef := range updateFuncs {
-				callFunction(updatef, newObj)
-			}
-		},
-		DeleteFunc: func(obj interface{}) {
-			for _, deletef := range deleteFuncs {
-				callFunction(deletef, obj)
-			}
-		},
-	}
-
-	if len(entry.watchFunctions) > 0 {
-		go func() {
-			listwatch, err := getListWatch(op)
-			_, controller := cache.NewInformer(
-				listwatch,
-				watchable.exec.Rs.GetObject(),
-				time.Second*0,
-				handlerFuncs,
-			)
-			if err != nil {
-				panic(err)
-			}
-			controller.Run(entry.stopCh)
-		}()
-	}
-	return nil
-}
-
-// Unregister make sure the function won't be invoked again even if any event matching the event
-// type arrives.
-func (watchable *kubernetesWatchable) Unregister(t watch.EventType, function Function) error {
-	entry := getWatchManager().unregisterFunc(watchable.exec.Rs, watchable.exec.Namespace, t, function)
-	op, err := opInterface(watchable.exec.Rs, watchable.exec.Namespace, watchable.exec.clientset)
-	if err != nil {
-		return err
-	}
-	go func() {
-		if len(entry.watchFunctions) > 0 {
-			listwatch, err := getListWatch(op)
-			_, controller := cache.NewInformer(
-				listwatch,
-				watchable.exec.Rs.GetObject(),
-				time.Second*0,
-				cache.ResourceEventHandlerFuncs{},
-			)
-			if err != nil {
-				panic(err)
-			}
-			controller.Run(entry.stopCh)
-		}
-	}()
-	return nil
-}
-
-// InCluster establishes connection with kube-apiserver if the program is
-// running in a kubernetes cluster.
-func InCluster() KubernetesClientLambda {
-	// creates the in-cluster config
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		panic(err.Error())
-	}
-	return OutOfCluster(config)
-}
-
-// OutOfCluster establishe connection witha kube-apiserver by loading specific
-// kube-config.
-func OutOfCluster(config *rest.Config) *KubernetesClientLambdaImpl {
-	return getKCLFromConfig(config)
-}
-*/
-
-func getKCLFromConfig(config *rest.Config) *KubernetesClientLambdaImpl {
+func getKCLFromConfig(config *rest.Config) *kubernetesClientLambdaImpl {
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		panic(err)
@@ -247,7 +128,7 @@ func getKCLFromConfig(config *rest.Config) *KubernetesClientLambdaImpl {
 	}()
 
 	factory := informers.NewSharedInformerFactory(clientset, time.Minute)
-	return &KubernetesClientLambdaImpl{
+	return &kubernetesClientLambdaImpl{
 		informerFactory: factory,
 		clientPool:      dynamic.NewDynamicClientPool(config),
 	}

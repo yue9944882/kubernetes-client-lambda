@@ -23,7 +23,7 @@ func Mock() KubernetesClientLambda {
 			return true, watch, nil
 		})
 	*/
-	return &KubernetesClientLambdaImpl{
+	return &kubernetesClientLambdaImpl{
 		clientPool: &fake.FakeClientPool{fakePtr},
 	}
 }
