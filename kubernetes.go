@@ -3,6 +3,7 @@ package lambda
 import (
 	"os"
 	"sync"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,15 +15,12 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 // Resource is kubernetes resource enumeration hiding api version
 type Resource string
-
-type kubernetesOpInterface interface{}
-type kubernetesApiGroupInterface interface{}
-type kubernetesVersionInterface interface{}
 
 type kubernetesExecutable struct {
 	getFunc         func(namespace, name string) (runtime.Object, error)
@@ -41,7 +39,6 @@ type KubernetesClientLambda interface {
 }
 
 type KubernetesClientLambdaImpl struct {
-	config          *rest.Config
 	informerFactory informers.SharedInformerFactory
 	clientPool      dynamic.ClientPool
 }
@@ -80,7 +77,12 @@ func (kcl *KubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 			if kcl.informerFactory != nil {
 				informer, err := kcl.informerFactory.ForResource(gvr)
 				if err != nil {
-					return nil, err
+					panic(err)
+				}
+				if informer.Informer().LastSyncResourceVersion() == "" {
+					kcl.informerFactory.Start(make(chan struct{}))
+					// TODO: set timeout for waiting cache sync
+					cache.WaitForCacheSync(make(chan struct{}), informer.Informer().HasSynced)
 				}
 				return informer.Lister().ByNamespace(namespace).List(labels.Everything())
 			}
@@ -233,18 +235,21 @@ func OutOfCluster(config *rest.Config) *KubernetesClientLambdaImpl {
 */
 
 func getKCLFromConfig(config *rest.Config) *KubernetesClientLambdaImpl {
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		panic(err)
+	}
+
 	// Resource discovery
 	// Must succeed: panics on failure
 	func() {
-		clientset, err := kubernetes.NewForConfig(config)
-		if err != nil {
-			panic(err)
-		}
 		initIndexer(clientset)
 	}()
 
+	factory := informers.NewSharedInformerFactory(clientset, time.Minute)
 	return &KubernetesClientLambdaImpl{
-		config: config,
+		informerFactory: factory,
+		clientPool:      dynamic.NewDynamicClientPool(config),
 	}
 }
 
@@ -286,21 +291,23 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 	}
 
 	var wg sync.WaitGroup
-	for _, namespace := range namespaces {
-		go func() {
+	go func() {
+		for _, namespace := range namespaces {
 			wg.Add(1)
-			objs, err := exec.listFunc(namespace)
-			if err != nil {
-				panic(err)
-			}
-			for _, obj := range objs {
-				ch <- obj
-			}
-			wg.Done()
-		}()
-	}
-	wg.Wait()
-	close(ch)
+			go func() {
+				objs, err := exec.listFunc(namespace)
+				if err != nil {
+					panic(err)
+				}
+				for _, obj := range objs {
+					ch <- obj
+				}
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+		close(ch)
+	}()
 	return l
 }
 

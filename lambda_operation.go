@@ -38,7 +38,7 @@ func (lambda *Lambda) Every(predicate Predicate) (bool, error) {
 		}
 	}
 	for item := range lambda.val {
-		if !predicate(item) {
+		if !callPredicate(predicate, item) {
 			return false, nil
 		}
 	}
@@ -53,7 +53,7 @@ func (lambda *Lambda) Any(predicate Predicate) (bool, error) {
 		}
 	}
 	for item := range lambda.val {
-		if predicate(item) {
+		if callPredicate(predicate, item) {
 			return true, nil
 		}
 	}
@@ -68,7 +68,7 @@ func (lambda *Lambda) Each(function Function) error {
 		}
 	}
 	for item := range lambda.val {
-		function(item)
+		callFunction(function, item)
 	}
 	return nil
 }

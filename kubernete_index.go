@@ -23,18 +23,27 @@ type resourceIndexerImpl struct {
 }
 
 func initIndexer(clientset kubernetes.Interface) {
-	apiResources, err := clientset.Discovery().ServerResources()
-	if err != nil {
-		panic(err)
-	}
 	indexer := &resourceIndexerImpl{
 		store: make(map[Resource]metav1.APIResource),
 	}
-	for _, apiResource := range apiResources {
-		for _, resource := range apiResource.APIResources {
-			for _, supportedResource := range GetResources() {
-				if supportedResource.GetCanonicalName() == resource.Name {
-					indexer.store[supportedResource] = resource
+	grouplist, err := clientset.Discovery().ServerGroups()
+	if err != nil {
+		panic(err)
+	}
+	for _, g := range grouplist.Groups {
+		for _, v := range g.Versions {
+			rs, err := clientset.Discovery().ServerResourcesForGroupVersion(v.GroupVersion)
+			if err != nil {
+				panic(err)
+			}
+			for _, r := range rs.APIResources {
+				for _, supportedResource := range GetResources() {
+					supportedResource := supportedResource
+					if supportedResource.GetCanonicalName() == r.Name {
+						r.Group = g.Name
+						r.Version = v.Version
+						indexer.store[supportedResource] = r
+					}
 				}
 			}
 		}

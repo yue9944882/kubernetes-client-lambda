@@ -1,39 +1,29 @@
 package lambda
 
 import (
-	"sync"
-
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/testing"
 )
-
-var (
-	mockclient = fake.NewSimpleClientset(getAllRuntimeObject()...)
-	mutex      = sync.Mutex{}
-)
-
-type KubernetesClientLambdaMock struct {
-	clientset kubernetes.Interface
-}
-
-func (kcl *KubernetesClientLambdaMock) Type(rs Resource) KubernetesLambda {
-	return &kubernetesExecutable{
-		Rs: rs,
-	}
-}
 
 // the mock KubernetesClient is statusful and if you want to reset its status then use MockReset
 func Mock() KubernetesClientLambda {
-	mutex.Lock()
-	defer mutex.Unlock()
-	initIndexer(mockclient)
-	return &KubernetesClientLambdaMock{
-		clientset: mockclient,
-	}
-}
+	o := testing.NewObjectTracker(scheme.Scheme, scheme.Codecs.UniversalDecoder())
 
-func (rs Resource) ResetMock() {
-	mutex.Lock()
-	defer mutex.Unlock()
-	mockclient = fake.NewSimpleClientset(getAllRuntimeObject()...)
+	fakePtr := testing.Fake{}
+	fakePtr.AddReactor("*", "*", testing.ObjectReaction(o))
+	/*
+		fakePtr.AddWatchReactor("*", func(action testing.Action) (handled bool, ret watch.Interface, err error) {
+			gvr := action.GetResource()
+			ns := action.GetNamespace()
+			watch, err := o.Watch(gvr, ns)
+			if err != nil {
+				return false, nil, err
+			}
+			return true, watch, nil
+		})
+	*/
+	return &KubernetesClientLambdaImpl{
+		clientPool: &fake.FakeClientPool{fakePtr},
+	}
 }

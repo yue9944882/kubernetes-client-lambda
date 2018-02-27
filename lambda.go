@@ -2,6 +2,7 @@ package lambda
 
 import (
 	"fmt"
+	"reflect"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -12,20 +13,60 @@ import (
 // Predicate is a function has only one parameter and return boolean.
 // When return value type is not boolean, panic will occur.
 // The parameter can be of any type but nil and predicates is always used to test an element.
-type Predicate func(runtime.Object) bool
+type Predicate interface{}
 
 // Consumer is a function has one parameter and returns one value.
 // Nil is not allowed to be used as parameter or return value, or panic will occur.
 // Consumer is always used to apply some transformation to elements.
-type Consumer func(runtime.Object) runtime.Object
+type Consumer interface{}
 
 // Function is a function has one parameter and has no return value.
 // The parameter must not be a nil
-type Function func(runtime.Object)
+type Function interface{}
 
 // Producer is a function takes no parameter and returns a value.
 // Producer is recommeneded to be a closure so that the returning value can be controlled outside lambda.
-type Producer func() runtime.Object
+type Producer interface{}
+
+func callPredicate(f interface{}, arg interface{}) bool {
+	if isZeroOfUnderlyingType(arg) {
+		panic(fmt.Sprintf("nil argument detected when calling predicate %#v with arg %#v", f, arg))
+	}
+	ret := reflect.ValueOf(f).Call([]reflect.Value{
+		reflect.ValueOf(arg),
+	})
+	return ret[0].Bool()
+}
+
+func callFunction(f interface{}, arg interface{}) {
+	if isZeroOfUnderlyingType(arg) {
+		panic(fmt.Sprintf("nil argument detected when calling function %#v with arg %#v", f, arg))
+	}
+	reflect.ValueOf(f).Call([]reflect.Value{
+		reflect.ValueOf(arg),
+	})
+}
+
+func callConsumer(f interface{}, arg interface{}) interface{} {
+	if isZeroOfUnderlyingType(arg) {
+		panic(fmt.Sprintf("nil argument detected when calling consumer %#v with arg %#v", f, arg))
+	}
+	ret := reflect.ValueOf(f).Call([]reflect.Value{
+		reflect.ValueOf(arg),
+	})
+	if isZeroOfUnderlyingType(ret[0].Interface()) {
+		panic(fmt.Sprintf("nil return value detected when calling consumer %#v with arg %#v", f, arg))
+	}
+	return ret[0].Interface()
+}
+
+func callProducer(f interface{}) interface{} {
+	ret := reflect.ValueOf(f).Call([]reflect.Value{})
+	if isZeroOfUnderlyingType(ret[0].Interface()) {
+		panic(fmt.Sprintf("nil return value detected when calling producer %#v", f))
+	}
+	return ret[0].Interface()
+}
 
 // Lambda is a basic and core type of KCL. It holds a channel for receiving elements from previous
 // lambda or kubernetes resource fetcher. Error is assigned if any error occured during lambda
@@ -88,7 +129,7 @@ func (lambda *Lambda) First(predicate Predicate) *Lambda {
 	go func() {
 		defer close(ch)
 		for item := range lambda.val {
-			if predicate(item) {
+			if callPredicate(predicate, item) {
 				ch <- item
 				break
 			}
@@ -103,7 +144,7 @@ func (lambda *Lambda) Grep(predicate Predicate) *Lambda {
 	go func() {
 		defer close(ch)
 		for item := range lambda.val {
-			if predicate(item) {
+			if callPredicate(predicate, item) {
 				ch <- item
 			}
 		}
@@ -121,8 +162,8 @@ func (lambda *Lambda) Map(consumer Consumer) *Lambda {
 	go func() {
 		defer close(ch)
 		for item := range lambda.val {
-			if v := consumer(item); v != nil {
-				ch <- v
+			if v := callConsumer(consumer, item); v != nil {
+				ch <- v.(runtime.Object)
 			}
 		}
 	}()
@@ -140,7 +181,7 @@ func (lambda *Lambda) Iter(function Function) *Lambda {
 	go func() {
 		defer close(ch)
 		for item := range lambda.val {
-			function(item)
+			callFunction(function, item)
 			ch <- item
 		}
 	}()
@@ -159,8 +200,8 @@ func (lambda *Lambda) Add(producer Producer) *Lambda {
 		for item := range lambda.val {
 			ch <- item
 		}
-		if v := producer(); v != nil {
-			ch <- v
+		if v := callProducer(producer); v != nil {
+			ch <- v.(runtime.Object)
 		}
 	}()
 	return l
