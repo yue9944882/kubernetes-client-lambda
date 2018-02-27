@@ -1,15 +1,21 @@
 package lambda
 
 import (
-	"k8s.io/client-go/dynamic/fake"
+	discovery_fake "k8s.io/client-go/discovery/fake"
+	dynamic_fake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/testing"
 )
 
 // the mock KubernetesClient is statusful and if you want to reset its status then use MockReset
 func Mock() KubernetesClientLambda {
-	o := testing.NewObjectTracker(scheme.Scheme, scheme.Codecs.UniversalDecoder())
+	return &kubernetesClientLambdaImpl{
+		clientPool: newFakeClientPool(),
+	}
+}
 
+func newFakeClientPool() *dynamic_fake.FakeClientPool {
+	o := testing.NewObjectTracker(scheme.Scheme, scheme.Codecs.UniversalDecoder())
 	fakePtr := testing.Fake{}
 	fakePtr.AddReactor("*", "*", testing.ObjectReaction(o))
 	/*
@@ -23,7 +29,14 @@ func Mock() KubernetesClientLambda {
 			return true, watch, nil
 		})
 	*/
-	return &kubernetesClientLambdaImpl{
-		clientPool: &fake.FakeClientPool{fakePtr},
+	return &dynamic_fake.FakeClientPool{fakePtr}
+}
+
+func newFakeDiscovery() *discovery_fake.FakeDiscovery {
+	fakePtr := testing.Fake{}
+	o := testing.NewObjectTracker(scheme.Scheme, scheme.Codecs.UniversalDecoder())
+	fakePtr.AddReactor("*", "*", testing.ObjectReaction(o))
+	return &discovery_fake.FakeDiscovery{
+		Fake: &fakePtr,
 	}
 }

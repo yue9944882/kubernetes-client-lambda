@@ -1,61 +1,60 @@
 package lambda
 
 import (
-	"strings"
 	"time"
 )
 
 const (
 	// core
-	Pod                   Resource = "pods"
-	Namespace             Resource = "namespaces"
-	Node                  Resource = "nodes"
-	Event                 Resource = "events"
-	Service               Resource = "services"
-	Endpoints             Resource = "endpoints"
-	LimitRange            Resource = "limitranges"
-	Secret                Resource = "secrets"
-	ConfigMap             Resource = "configmaps"
-	ServiceAccout         Resource = "serviceaccounts"
-	PodTemplate           Resource = "podtemplates"
-	ResourceQuota         Resource = "resourcequotas"
-	PersistentVolume      Resource = "persistentvolumes"
-	PersistentVolumeClaim Resource = "persistentvolumeclaims"
-	ReplicationController Resource = "replicationcontrollers"
+	Pod                   Resource = "Pod"
+	Namespace             Resource = "Namespace"
+	Node                  Resource = "Node"
+	Event                 Resource = "Event"
+	Service               Resource = "Service"
+	Endpoints             Resource = "Endpoints"
+	LimitRange            Resource = "LimitRange"
+	Secret                Resource = "Secret"
+	ConfigMap             Resource = "ConfigMap"
+	ServiceAccout         Resource = "ServiceAccount"
+	PodTemplate           Resource = "PodTemplate"
+	ResourceQuota         Resource = "ResourceQuota"
+	PersistentVolume      Resource = "PersistentVolume"
+	PersistentVolumeClaim Resource = "PersistentVolumeClaim"
+	ReplicationController Resource = "ReplicationController"
 
 	// extensions
-	Ingress           Resource = "ingresses"
-	ReplicaSet        Resource = "replicasets"
-	Deployment        Resource = "deployments"
-	DaemonSet         Resource = "daemonsets"
-	PodSecurityPolicy Resource = "podsecuritypolicies"
+	Ingress           Resource = "Ingress"
+	ReplicaSet        Resource = "ReplicaSet"
+	Deployment        Resource = "Deployment"
+	DaemonSet         Resource = "DaemonSet"
+	PodSecurityPolicy Resource = "PodSecurityPolicy"
 
 	// apps
-	StatefulSet        Resource = "statefulsets"
-	ControllerRevision Resource = "controllerrevisions"
+	StatefulSet        Resource = "StatefulSet"
+	ControllerRevision Resource = "ControllerRevision"
 
 	// rbac
-	ClusterRole        Resource = "clusterroles"
-	ClusterRoleBinding Resource = "clusterrolebindings"
-	Role               Resource = "roles"
-	RoleBinding        Resource = "rolebindings"
+	ClusterRole        Resource = "ClusterRole"
+	ClusterRoleBinding Resource = "ClusterRoleBinding"
+	Role               Resource = "Role"
+	RoleBinding        Resource = "RoleBinding"
 
 	// batch
-	Job     Resource = "jobs"
-	CronJob Resource = "cronjobs"
+	Job     Resource = "Job"
+	CronJob Resource = "CronJob"
 
 	// storage
-	StorageClass Resource = "storageclasses"
+	StorageClass Resource = "StorageClass"
 	// VolumeAttachment Resource = "volumeattachments"
 
 	// settings
 	// PodPreset Resource = "podpresets"
 
 	// network
-	NetworkPolicy Resource = "networkpolicies"
+	NetworkPolicy Resource = "NetworkPolicy"
 
 	// autoscaling
-	HorizontalPodAutoscaler Resource = "horizontalpodautoscalers"
+	HorizontalPodAutoscaler Resource = "HorizontalPodAutoscaler"
 
 	// authentication
 
@@ -128,8 +127,4 @@ func GetResources() []Resource {
 		// autoscaling
 		HorizontalPodAutoscaler,
 	}
-}
-
-func (rs Resource) GetCanonicalName() string {
-	return strings.ToLower(string(rs))
 }
