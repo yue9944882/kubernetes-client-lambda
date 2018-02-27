@@ -115,7 +115,9 @@ func GetResources() []Resource {
 
 		// batch
 		Job,
-		CronJob,
+
+		// comment alpha resource temporary
+		// CronJob,
 
 		// storage
 		StorageClass,
