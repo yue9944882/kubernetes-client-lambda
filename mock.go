@@ -1,42 +1,42 @@
 package lambda
 
 import (
-	"sync"
-
-	meta_v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/fake"
+	discovery_fake "k8s.io/client-go/discovery/fake"
+	dynamic_fake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/testing"
 )
 
-var (
-	mockclient = fake.NewSimpleClientset(getAllRuntimeObject()...)
-	mutex      = sync.Mutex{}
-)
-
-type KubernetesClientLambdaMock struct {
-	clientset kubernetes.Interface
-}
-
-func (kcl *KubernetesClientLambdaMock) Type(rs Resource) KubernetesLambda {
-	return &kubernetesExecutable{
-		clientset: kcl.clientset,
-		Namespace: meta_v1.NamespaceDefault,
-		Rs:        rs,
-	}
-}
-
-// Mock return a mock interface of lambda KubernetesClient
 // the mock KubernetesClient is statusful and if you want to reset its status then use MockReset
 func Mock() KubernetesClientLambda {
-	mutex.Lock()
-	defer mutex.Unlock()
-	return &KubernetesClientLambdaMock{
-		clientset: mockclient,
+	return &kubernetesClientLambdaImpl{
+		clientPool: newFakeClientPool(),
 	}
 }
 
-func (rs Resource) ResetMock() {
-	mutex.Lock()
-	defer mutex.Unlock()
-	mockclient = fake.NewSimpleClientset(getAllRuntimeObject()...)
+func newFakeClientPool() *dynamic_fake.FakeClientPool {
+	o := testing.NewObjectTracker(scheme.Scheme, scheme.Codecs.UniversalDecoder())
+	fakePtr := testing.Fake{}
+	fakePtr.AddReactor("*", "*", testing.ObjectReaction(o))
+	/*
+		fakePtr.AddWatchReactor("*", func(action testing.Action) (handled bool, ret watch.Interface, err error) {
+			gvr := action.GetResource()
+			ns := action.GetNamespace()
+			watch, err := o.Watch(gvr, ns)
+			if err != nil {
+				return false, nil, err
+			}
+			return true, watch, nil
+		})
+	*/
+	return &dynamic_fake.FakeClientPool{fakePtr}
+}
+
+func newFakeDiscovery() *discovery_fake.FakeDiscovery {
+	fakePtr := testing.Fake{}
+	o := testing.NewObjectTracker(scheme.Scheme, scheme.Codecs.UniversalDecoder())
+	fakePtr.AddReactor("*", "*", testing.ObjectReaction(o))
+	return &discovery_fake.FakeDiscovery{
+		Fake: &fakePtr,
+	}
 }
