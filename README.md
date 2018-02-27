@@ -12,6 +12,7 @@
 
 Kubernetes Client Lambda (aka KCL) is a wrapper library for [kubernetes/client-go](https://github.com/kubernetes/client-go). Basically it contains these following feature:
 
+- Dynamic client & client pool
 - Hide details about client-go's informer and lister.
 - Hide annoying group & versions and use resources as enum.
 - Lambda styled resource filtering & manipulating. (inspired by Groovy)
