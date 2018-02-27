@@ -238,10 +238,6 @@ func (lambda *Lambda) UpdateIfExist() (updated bool, err error) {
 	return
 }
 
-// Sync automatically decides to create / update a resource
-// If the resource doesn't exist,
-// DO NOT USE THIS: TODO: resolve critical BUG!!
-/*
 func (lambda *Lambda) UpdateOrCreate() (success bool, err error) {
 	if !lambda.NoError() {
 		return false, &ErrMultiLambdaFailure{
@@ -251,17 +247,21 @@ func (lambda *Lambda) UpdateOrCreate() (success bool, err error) {
 	updated := false
 	created := false
 	for item := range lambda.val {
-		if rs, err := lambda.op.opGetInterface(getNameOfResource(item)); err != nil {
-			if _, err := lambda.op.opCreateInterface(item); err != nil {
-				lambda.addError(err)
-			} else {
-				created = true
-			}
-		} else {
-			if _, err := lambda.op.opUpdateInterface(rs); err != nil {
+		accessor, err := meta.Accessor(item)
+		if err != nil {
+			return false, err
+		}
+		if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
+			if err := update(lambda.clientInterface, lambda.rs, item); err != nil {
 				lambda.addError(err)
 			} else {
 				updated = true
+			}
+		} else {
+			if err := create(lambda.clientInterface, lambda.rs, item); err != nil {
+				lambda.addError(err)
+			} else {
+				created = true
 			}
 		}
 	}
@@ -273,7 +273,6 @@ func (lambda *Lambda) UpdateOrCreate() (success bool, err error) {
 	success = updated || created
 	return
 }
-*/
 
 func castObjectToUnstructured(object runtime.Object) (*unstructured.Unstructured, error) {
 	buffer := new(bytes.Buffer)
