@@ -53,7 +53,7 @@ func initIndexer(i discovery.DiscoveryInterface) {
 }
 
 // getResouceIndexerInstance blocks until initIndexer is invoked
-func getResouceIndexerInstance() (indexer ResourceIndexer) {
+func GetResouceIndexerInstance() (indexer ResourceIndexer) {
 	// Singleton
 	for !indexerInitialized {
 	}

@@ -10,11 +10,11 @@ import (
 // the mock KubernetesClient is statusful and if you want to reset its status then use MockReset
 func Mock() KubernetesClientLambda {
 	return &kubernetesClientLambdaImpl{
-		clientPool: newFakeClientPool(),
+		clientPool: NewFakeClientPool(),
 	}
 }
 
-func newFakeClientPool() *dynamic_fake.FakeClientPool {
+func NewFakeClientPool() *dynamic_fake.FakeClientPool {
 	o := testing.NewObjectTracker(scheme.Scheme, scheme.Codecs.UniversalDecoder())
 	fakePtr := testing.Fake{}
 	fakePtr.AddReactor("*", "*", testing.ObjectReaction(o))

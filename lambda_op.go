@@ -247,7 +247,7 @@ func castObjectToUnstructured(object runtime.Object) (*unstructured.Unstructured
 }
 
 func create(i dynamic.Interface, rs Resource, object runtime.Object) error {
-	api := getResouceIndexerInstance().GetAPIResource(rs)
+	api := GetResouceIndexerInstance().GetAPIResource(rs)
 	accessor, err := meta.Accessor(object)
 	if err != nil {
 		return err
@@ -263,7 +263,7 @@ func create(i dynamic.Interface, rs Resource, object runtime.Object) error {
 }
 
 func delete(i dynamic.Interface, rs Resource, object runtime.Object) error {
-	api := getResouceIndexerInstance().GetAPIResource(rs)
+	api := GetResouceIndexerInstance().GetAPIResource(rs)
 	accessor, err := meta.Accessor(object)
 	if err != nil {
 		return err
@@ -275,7 +275,7 @@ func delete(i dynamic.Interface, rs Resource, object runtime.Object) error {
 }
 
 func update(i dynamic.Interface, rs Resource, object runtime.Object) error {
-	api := getResouceIndexerInstance().GetAPIResource(rs)
+	api := GetResouceIndexerInstance().GetAPIResource(rs)
 	accessor, err := meta.Accessor(object)
 	if err != nil {
 		return err
