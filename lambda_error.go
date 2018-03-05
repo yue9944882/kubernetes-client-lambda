@@ -40,5 +40,5 @@ func (e ErrMultiLambdaFailure) Error() string {
 	for _, err := range e.errors {
 		msgs = append(msgs, err.Error())
 	}
-	return fmt.Sprintf("%d error occured: %s", len(e.errors), strings.Join(msgs, ","))
+	return fmt.Sprintf("%d error occured: %s", len(e.errors), strings.Join(msgs, ", "))
 }

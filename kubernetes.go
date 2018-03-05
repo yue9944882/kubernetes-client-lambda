@@ -55,7 +55,7 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 				}
 				return informer.Lister().ByNamespace(namespace).Get(name)
 			}
-			tmpObj, err := i.Resource(&api, namespace).Get(name, metav1.GetOptions{})
+			tmpObj, err := i.Resource(api, namespace).Get(name, metav1.GetOptions{})
 			if err != nil {
 				return nil, err
 			}
@@ -81,7 +81,7 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 				}
 				return informer.Lister().ByNamespace(namespace).List(labels.Everything())
 			}
-			tmpObjList, err := i.Resource(&api, namespace).List(metav1.ListOptions{})
+			tmpObjList, err := i.Resource(api, namespace).List(metav1.ListOptions{})
 			if err != nil {
 				return nil, err
 			}
@@ -165,8 +165,10 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 	ch := make(chan runtime.Object)
 
 	l := &Lambda{
-		rs:  exec.Rs,
-		val: ch,
+		getFunc:         exec.getFunc,
+		rs:              exec.Rs,
+		val:             ch,
+		clientInterface: exec.clientInterface,
 	}
 
 	var wg sync.WaitGroup

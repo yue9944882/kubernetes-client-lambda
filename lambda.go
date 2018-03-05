@@ -76,7 +76,6 @@ func callProducer(f interface{}) interface{} {
 type Lambda struct {
 	getFunc         func(namespace, name string) (runtime.Object, error)
 	clientInterface dynamic.Interface
-	op              *kubernetesExecutable
 	rs              Resource
 	val             <-chan runtime.Object
 	Errors          []error
@@ -107,9 +106,11 @@ func (lambda *Lambda) addError(err error) {
 func (lambda *Lambda) clone() (*Lambda, chan runtime.Object) {
 	ch := make(chan runtime.Object)
 	l := &Lambda{
-		op:     lambda.op,
-		val:    ch,
-		Errors: lambda.Errors,
+		rs:              lambda.rs,
+		val:             ch,
+		Errors:          lambda.Errors,
+		getFunc:         lambda.getFunc,
+		clientInterface: lambda.clientInterface,
 	}
 	return l, ch
 }

@@ -27,7 +27,7 @@ func (lambda *Lambda) NotEmpty() (noempty bool, err error) {
 			}
 		},
 	)
-	return false, nil
+	return
 }
 
 // Every checks if every element get a true from predicate
@@ -102,8 +102,9 @@ func (lambda *Lambda) CreateIfNotExist() (created, existed bool, err error) {
 					lambda.addError(err)
 					continue
 				}
-				if obj, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err != nil {
-					if err := create(lambda.clientInterface, lambda.rs, obj); err != nil {
+				if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err != nil {
+					// TODO: judge if the error is errors.StatusError
+					if err := create(lambda.clientInterface, lambda.rs, item); err != nil {
 						lambda.addError(err)
 					} else {
 						created = true
@@ -256,7 +257,7 @@ func create(i dynamic.Interface, rs Resource, object runtime.Object) error {
 	if err != nil {
 		return err
 	}
-	if _, err := i.Resource(&api, accessor.GetNamespace()).Create(tmpObj); err != nil {
+	if _, err := i.Resource(api, accessor.GetNamespace()).Create(tmpObj); err != nil {
 		return err
 	}
 	return nil
@@ -268,7 +269,7 @@ func delete(i dynamic.Interface, rs Resource, object runtime.Object) error {
 	if err != nil {
 		return err
 	}
-	if err := i.Resource(&api, accessor.GetNamespace()).Delete(accessor.GetName(), &metav1.DeleteOptions{}); err != nil {
+	if err := i.Resource(api, accessor.GetNamespace()).Delete(accessor.GetName(), &metav1.DeleteOptions{}); err != nil {
 		return err
 	}
 	return nil
@@ -284,7 +285,7 @@ func update(i dynamic.Interface, rs Resource, object runtime.Object) error {
 	if err != nil {
 		return err
 	}
-	if _, err := i.Resource(&api, accessor.GetNamespace()).Update(tmpObj); err != nil {
+	if _, err := i.Resource(api, accessor.GetNamespace()).Update(tmpObj); err != nil {
 		return err
 	}
 	return nil
