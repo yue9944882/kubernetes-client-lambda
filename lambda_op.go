@@ -16,61 +16,58 @@ import (
 
 // NotEmpty checks if any element remains
 // Returns true if the lambda collection is not empty and error if upstream lambda fails
-func (lambda *Lambda) NotEmpty() (bool, error) {
-	if !lambda.NoError() {
-		return false, &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	for item := range lambda.val {
-		if item != nil {
-			return true, nil
-		}
-	}
+func (lambda *Lambda) NotEmpty() (noempty bool, err error) {
+	noempty = true
+	err = lambda.run(
+		func() {
+			for item := range lambda.val {
+				if item == nil {
+					noempty = false
+				}
+			}
+		},
+	)
 	return false, nil
 }
 
 // Every checks if every element get a true from predicate
-func (lambda *Lambda) Every(predicate Predicate) (bool, error) {
-	if !lambda.NoError() {
-		return false, &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	for item := range lambda.val {
-		if !callPredicate(predicate, item) {
-			return false, nil
-		}
-	}
-	return true, nil
+func (lambda *Lambda) Every(predicate Predicate) (every bool, err error) {
+	every = true
+	err = lambda.run(
+		func() {
+			for item := range lambda.val {
+				if !callPredicate(predicate, item) {
+					every = false
+				}
+			}
+		},
+	)
+	return
 }
 
 // Any checks if any element get a true from predicate
-func (lambda *Lambda) Any(predicate Predicate) (bool, error) {
-	if !lambda.NoError() {
-		return false, &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	for item := range lambda.val {
-		if callPredicate(predicate, item) {
-			return true, nil
-		}
-	}
-	return false, nil
+func (lambda *Lambda) Any(predicate Predicate) (any bool, err error) {
+	err = lambda.run(
+		func() {
+			for item := range lambda.val {
+				if callPredicate(predicate, item) {
+					any = true
+				}
+			}
+		},
+	)
+	return
 }
 
 // Each applies function to every element
 func (lambda *Lambda) Each(function Function) error {
-	if !lambda.NoError() {
-		return &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	for item := range lambda.val {
-		callFunction(function, item)
-	}
-	return nil
+	return lambda.run(
+		func() {
+			for item := range lambda.val {
+				callFunction(function, item)
+			}
+		},
+	)
 }
 
 //********************************************************
@@ -80,197 +77,159 @@ func (lambda *Lambda) Each(function Function) error {
 // Create creates every element remains in lambda collection
 // Returns true if every element is successfully created and lambda error chain
 // Fails if any element already exists
-func (lambda *Lambda) Create() (bool, error) {
-	if !lambda.NoError() {
-		return false, &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
+func (lambda *Lambda) Create() (created bool, err error) {
+	err = lambda.run(func() {
+		for item := range lambda.val {
+			if err := create(lambda.clientInterface, lambda.rs, item); err != nil {
+				lambda.addError(err)
+				continue
+			} else {
+				created = true
+			}
 		}
-	}
-	allCreated := true
-	for item := range lambda.val {
-		if err := create(lambda.clientInterface, lambda.rs, item); err != nil {
-			lambda.addError(err)
-			allCreated = false
-		}
-	}
-	if len(lambda.Errors) != 0 {
-		return false, &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	return allCreated, nil
+	})
+	return
 }
 
 // CreateIfNotExist creates element in the lambda collection
 // Will not return false if any element fails to be created
-func (lambda *Lambda) CreateIfNotExist() (bool, error) {
-	if !lambda.NoError() {
-		return false, &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	created := false
-	searchHit := false
-	for item := range lambda.val {
-		accessor, err := meta.Accessor(item)
-		if err != nil {
-			return false, err
-		}
-		if obj, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err != nil {
-			if err := create(lambda.clientInterface, lambda.rs, obj); err != nil {
-				lambda.addError(err)
-			} else {
-				created = true
+func (lambda *Lambda) CreateIfNotExist() (created, existed bool, err error) {
+	err = lambda.run(
+		func() {
+			for item := range lambda.val {
+				accessor, err := meta.Accessor(item)
+				if err != nil {
+					lambda.addError(err)
+					continue
+				}
+				if obj, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err != nil {
+					if err := create(lambda.clientInterface, lambda.rs, obj); err != nil {
+						lambda.addError(err)
+					} else {
+						created = true
+					}
+				} else {
+					existed = true
+				}
 			}
-		} else {
-			searchHit = true
-		}
-	}
-	if len(lambda.Errors) != 0 {
-		return false, &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	return searchHit || created, nil
+		},
+	)
+	return
 }
 
 // Delete remove every element in the lambda collection
-func (lambda *Lambda) Delete() (bool, error) {
-	if !lambda.NoError() {
-		return false, &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	deleted := false
-	for item := range lambda.val {
-		if err := delete(lambda.clientInterface, lambda.rs, item); err != nil {
-			lambda.addError(err)
-		} else {
-			deleted = true
-		}
-	}
-	if len(lambda.Errors) != 0 {
-		return false, &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	return deleted, nil
+func (lambda *Lambda) Delete() (deleted bool, err error) {
+	err = lambda.run(
+		func() {
+			for item := range lambda.val {
+				accessor, err := meta.Accessor(item)
+				if err != nil {
+					lambda.addError(err)
+					continue
+				}
+				if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
+					if err := delete(lambda.clientInterface, lambda.rs, item); err != nil {
+						lambda.addError(err)
+					} else {
+						deleted = true
+					}
+				}
+			}
+		},
+	)
+	return
 }
 
 // DeleteIfExist delete elements in the lambda collection if it exists
-func (lambda *Lambda) DeleteIfExist() (bool, error) {
-	if !lambda.NoError() {
-		return false, &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	deleted := false
-	for item := range lambda.val {
-		accessor, err := meta.Accessor(item)
-		if err != nil {
-			return false, err
-		}
-		if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
-			if err := delete(lambda.clientInterface, lambda.rs, item); err != nil {
-				lambda.addError(err)
-			} else {
-				deleted = true
+func (lambda *Lambda) DeleteIfExist() (deleted, existed bool, err error) {
+	err = lambda.run(
+		func() {
+			for item := range lambda.val {
+				accessor, err := meta.Accessor(item)
+				if err != nil {
+					lambda.addError(err)
+					continue
+				}
+				if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
+					if err := delete(lambda.clientInterface, lambda.rs, item); err != nil {
+						lambda.addError(err)
+					} else {
+						deleted = true
+						existed = true
+					}
+				} else {
+					deleted = true
+				}
 			}
-		}
-	}
-	if len(lambda.Errors) != 0 {
-		return false, &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	return deleted, nil
+		},
+	)
+	return
 }
 
 // Update updates elements to kuberentes resources
 func (lambda *Lambda) Update() (updated bool, err error) {
-	if !lambda.NoError() {
-		return false, &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	updated = false
-	for item := range lambda.val {
-		if err := update(lambda.clientInterface, lambda.rs, item); err != nil {
-			lambda.addError(err)
-		} else {
-			updated = true
-		}
-	}
-	if len(lambda.Errors) != 0 {
-		err = &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
+	err = lambda.run(
+		func() {
+			for item := range lambda.val {
+				if err := update(lambda.clientInterface, lambda.rs, item); err != nil {
+					lambda.addError(err)
+				} else {
+					updated = true
+				}
+			}
+		},
+	)
 	return
 }
 
 // UpdateIfExist checks if the element exists and update it value
-func (lambda *Lambda) UpdateIfExist() (updated bool, err error) {
-	if !lambda.NoError() {
-		return false, &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	updated = false
-	for item := range lambda.val {
-		accessor, err := meta.Accessor(item)
-		if err != nil {
-			return false, err
-		}
-		if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
-			if err := update(lambda.clientInterface, lambda.rs, item); err != nil {
-				lambda.addError(err)
-			} else {
-				updated = true
+func (lambda *Lambda) UpdateIfExist() (updated, existed bool, err error) {
+	lambda.run(
+		func() {
+			for item := range lambda.val {
+				accessor, err := meta.Accessor(item)
+				if err != nil {
+					lambda.addError(err)
+					continue
+				}
+				if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
+					if err := update(lambda.clientInterface, lambda.rs, item); err != nil {
+						lambda.addError(err)
+					} else {
+						updated = true
+					}
+				}
 			}
-		}
-	}
-	if len(lambda.Errors) != 0 {
-		err = &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
+		},
+	)
 	return
 }
 
-func (lambda *Lambda) UpdateOrCreate() (success bool, err error) {
-	if !lambda.NoError() {
-		return false, &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	updated := false
-	created := false
-	for item := range lambda.val {
-		accessor, err := meta.Accessor(item)
-		if err != nil {
-			return false, err
-		}
-		if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
-			if err := update(lambda.clientInterface, lambda.rs, item); err != nil {
-				lambda.addError(err)
-			} else {
-				updated = true
+func (lambda *Lambda) UpdateOrCreate() (updated, created bool, err error) {
+	err = lambda.run(
+		func() {
+			for item := range lambda.val {
+				accessor, err := meta.Accessor(item)
+				if err != nil {
+					lambda.addError(err)
+					continue
+				}
+				if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
+					if err := update(lambda.clientInterface, lambda.rs, item); err != nil {
+						lambda.addError(err)
+					} else {
+						updated = true
+					}
+				} else {
+					if err := create(lambda.clientInterface, lambda.rs, item); err != nil {
+						lambda.addError(err)
+					} else {
+						created = true
+					}
+				}
 			}
-		} else {
-			if err := create(lambda.clientInterface, lambda.rs, item); err != nil {
-				lambda.addError(err)
-			} else {
-				created = true
-			}
-		}
-	}
-	if len(lambda.Errors) != 0 {
-		err = &ErrMultiLambdaFailure{
-			errors: lambda.Errors,
-		}
-	}
-	success = updated || created
+		},
+	)
 	return
 }
 
