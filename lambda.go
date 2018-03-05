@@ -82,6 +82,21 @@ type Lambda struct {
 	Errors          []error
 }
 
+func (lambda *Lambda) run(f func()) error {
+	if !lambda.NoError() {
+		return &ErrMultiLambdaFailure{
+			errors: lambda.Errors,
+		}
+	}
+	f()
+	if len(lambda.Errors) != 0 {
+		return &ErrMultiLambdaFailure{
+			errors: lambda.Errors,
+		}
+	}
+	return nil
+}
+
 func (lambda *Lambda) addError(err error) {
 	if lambda.Errors == nil {
 		lambda.Errors = []error{err}
