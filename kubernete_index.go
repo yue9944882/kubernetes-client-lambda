@@ -1,6 +1,8 @@
 package lambda
 
 import (
+	"strings"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/discovery"
@@ -13,18 +15,18 @@ var _ ResourceIndexer = &resourceIndexerImpl{}
 
 type ResourceIndexer interface {
 	IsNamespaced(resource Resource) bool
-	GetAPIResource(resource Resource) metav1.APIResource
+	GetAPIResource(resource Resource) *metav1.APIResource
 	GetGroupVersionKind(resource Resource) schema.GroupVersionKind
 	GetGroupVersionResource(resource Resource) schema.GroupVersionResource
 }
 
 type resourceIndexerImpl struct {
-	store map[Resource]metav1.APIResource
+	store map[Resource]*metav1.APIResource
 }
 
 func initIndexer(i discovery.DiscoveryInterface) {
 	indexer := &resourceIndexerImpl{
-		store: make(map[Resource]metav1.APIResource),
+		store: make(map[Resource]*metav1.APIResource),
 	}
 	grouplist, err := i.ServerGroups()
 	if err != nil {
@@ -37,12 +39,13 @@ func initIndexer(i discovery.DiscoveryInterface) {
 				panic(err)
 			}
 			for _, r := range rs.APIResources {
+				r := r
 				for _, supportedResource := range GetResources() {
 					supportedResource := supportedResource
-					if string(supportedResource) == r.Kind {
+					if strings.ToLower(string(supportedResource)) == r.Name {
 						r.Group = g.Name
 						r.Version = v.Version
-						indexer.store[supportedResource] = r
+						indexer.store[supportedResource] = &r
 					}
 				}
 			}
@@ -53,7 +56,7 @@ func initIndexer(i discovery.DiscoveryInterface) {
 }
 
 // getResouceIndexerInstance blocks until initIndexer is invoked
-func getResouceIndexerInstance() (indexer ResourceIndexer) {
+func GetResouceIndexerInstance() (indexer ResourceIndexer) {
 	// Singleton
 	for !indexerInitialized {
 	}
@@ -74,7 +77,7 @@ func (indexer *resourceIndexerImpl) GetGroupVersionResource(resource Resource) s
 	}
 }
 
-func (indexer *resourceIndexerImpl) GetAPIResource(resource Resource) metav1.APIResource {
+func (indexer *resourceIndexerImpl) GetAPIResource(resource Resource) *metav1.APIResource {
 	return indexer.store[resource]
 }
 

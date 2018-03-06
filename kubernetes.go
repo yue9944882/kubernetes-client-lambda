@@ -1,12 +1,14 @@
 package lambda
 
 import (
+	"bytes"
 	"os"
 	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -39,9 +41,9 @@ type kubernetesClientLambdaImpl struct {
 }
 
 func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
-	gvr := getResouceIndexerInstance().GetGroupVersionResource(rs)
-	gvk := getResouceIndexerInstance().GetGroupVersionKind(rs)
-	api := getResouceIndexerInstance().GetAPIResource(rs)
+	gvr := GetResouceIndexerInstance().GetGroupVersionResource(rs)
+	gvk := GetResouceIndexerInstance().GetGroupVersionKind(rs)
+	api := GetResouceIndexerInstance().GetAPIResource(rs)
 	i, err := kcl.clientPool.ClientForGroupVersionResource(gvr)
 	if err != nil {
 		panic(err)
@@ -55,7 +57,7 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 				}
 				return informer.Lister().ByNamespace(namespace).Get(name)
 			}
-			tmpObj, err := i.Resource(&api, namespace).Get(name, metav1.GetOptions{})
+			tmpObj, err := i.Resource(api, namespace).Get(name, metav1.GetOptions{})
 			if err != nil {
 				return nil, err
 			}
@@ -71,17 +73,16 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 		listFunc: func(namespace string) ([]runtime.Object, error) {
 			if kcl.informerFactory != nil {
 				informer, err := kcl.informerFactory.ForResource(gvr)
-				if err != nil {
-					panic(err)
+				if err == nil {
+					if informer.Informer().LastSyncResourceVersion() == "" {
+						kcl.informerFactory.Start(make(chan struct{}))
+						// TODO: set timeout for waiting cache sync
+						cache.WaitForCacheSync(make(chan struct{}), informer.Informer().HasSynced)
+					}
+					return informer.Lister().ByNamespace(namespace).List(labels.Everything())
 				}
-				if informer.Informer().LastSyncResourceVersion() == "" {
-					kcl.informerFactory.Start(make(chan struct{}))
-					// TODO: set timeout for waiting cache sync
-					cache.WaitForCacheSync(make(chan struct{}), informer.Informer().HasSynced)
-				}
-				return informer.Lister().ByNamespace(namespace).List(labels.Everything())
 			}
-			tmpObjList, err := i.Resource(&api, namespace).List(metav1.ListOptions{})
+			tmpObjList, err := i.Resource(api, namespace).List(metav1.ListOptions{})
 			if err != nil {
 				return nil, err
 			}
@@ -93,9 +94,13 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 			for _, tmpObj := range tmpObjs {
 				obj, err := scheme.Scheme.New(gvk)
 				if err != nil {
-					panic(err)
+					return nil, err
 				}
-				if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
+				buffer := new(bytes.Buffer)
+				if err := unstructured.UnstructuredJSONScheme.Encode(tmpObj, buffer); err != nil {
+					return nil, err
+				}
+				if _, _, err := unstructured.UnstructuredJSONScheme.Decode(buffer.Bytes(), nil, obj); err != nil {
 					return nil, err
 				}
 				retObjs = append(retObjs, obj)
@@ -159,16 +164,16 @@ func OutOfClusterInContext(context string) KubernetesClientLambda {
 }
 
 func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
-
 	if len(namespaces) == 0 {
 		namespaces = []string{metav1.NamespaceAll}
 	}
-
 	ch := make(chan runtime.Object)
 
 	l := &Lambda{
-		rs:  exec.Rs,
-		val: ch,
+		getFunc:         exec.getFunc,
+		rs:              exec.Rs,
+		val:             ch,
+		clientInterface: exec.clientInterface,
 	}
 
 	var wg sync.WaitGroup
@@ -202,9 +207,9 @@ func (exec *kubernetesExecutable) WatchNamespace(namespace string) KubernetesWat
 */
 
 func listResourceViaInformer(informerFactory informers.SharedInformerFactory, rs Resource, namespace string) (objs []runtime.Object, err error) {
-	gvr := getResouceIndexerInstance().GetGroupVersionResource(rs)
+	gvr := GetResouceIndexerInstance().GetGroupVersionResource(rs)
 	informer, err := informerFactory.ForResource(gvr)
-	isNamespaced := getResouceIndexerInstance().IsNamespaced(rs)
+	isNamespaced := GetResouceIndexerInstance().IsNamespaced(rs)
 	if isNamespaced {
 		objs, err = informer.Lister().ByNamespace(namespace).List(labels.Everything())
 	} else {

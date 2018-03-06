@@ -6,55 +6,55 @@ import (
 
 const (
 	// core
-	Pod                   Resource = "Pod"
-	Namespace             Resource = "Namespace"
-	Node                  Resource = "Node"
-	Event                 Resource = "Event"
-	Service               Resource = "Service"
+	Pod                   Resource = "Pods"
+	Namespace             Resource = "Namespaces"
+	Node                  Resource = "Nodes"
+	Event                 Resource = "Events"
+	Service               Resource = "Services"
 	Endpoints             Resource = "Endpoints"
-	LimitRange            Resource = "LimitRange"
-	Secret                Resource = "Secret"
-	ConfigMap             Resource = "ConfigMap"
-	ServiceAccout         Resource = "ServiceAccount"
-	PodTemplate           Resource = "PodTemplate"
-	ResourceQuota         Resource = "ResourceQuota"
-	PersistentVolume      Resource = "PersistentVolume"
-	PersistentVolumeClaim Resource = "PersistentVolumeClaim"
-	ReplicationController Resource = "ReplicationController"
+	LimitRange            Resource = "LimitRanges"
+	Secret                Resource = "Secrets"
+	ConfigMap             Resource = "ConfigMaps"
+	ServiceAccout         Resource = "ServiceAccounts"
+	PodTemplate           Resource = "PodTemplates"
+	ResourceQuota         Resource = "ResourceQuotas"
+	PersistentVolume      Resource = "PersistentVolumes"
+	PersistentVolumeClaim Resource = "PersistentVolumeClaims"
+	ReplicationController Resource = "ReplicationControllers"
 
 	// extensions
-	Ingress           Resource = "Ingress"
-	ReplicaSet        Resource = "ReplicaSet"
-	Deployment        Resource = "Deployment"
-	DaemonSet         Resource = "DaemonSet"
-	PodSecurityPolicy Resource = "PodSecurityPolicy"
+	Ingress           Resource = "Ingresses"
+	ReplicaSet        Resource = "ReplicaSets"
+	Deployment        Resource = "Deployments"
+	DaemonSet         Resource = "DaemonSets"
+	PodSecurityPolicy Resource = "PodSecurityPolicies"
 
 	// apps
-	StatefulSet        Resource = "StatefulSet"
-	ControllerRevision Resource = "ControllerRevision"
+	StatefulSet        Resource = "StatefulSets"
+	ControllerRevision Resource = "ControllerRevisions"
 
 	// rbac
-	ClusterRole        Resource = "ClusterRole"
-	ClusterRoleBinding Resource = "ClusterRoleBinding"
-	Role               Resource = "Role"
-	RoleBinding        Resource = "RoleBinding"
+	ClusterRole        Resource = "ClusterRoles"
+	ClusterRoleBinding Resource = "ClusterRoleBindings"
+	Role               Resource = "Roles"
+	RoleBinding        Resource = "RoleBindings"
 
 	// batch
-	Job     Resource = "Job"
-	CronJob Resource = "CronJob"
+	Job     Resource = "Jobs"
+	CronJob Resource = "CronJobs"
 
 	// storage
-	StorageClass Resource = "StorageClass"
+	StorageClass Resource = "StorageClasses"
 	// VolumeAttachment Resource = "volumeattachments"
 
 	// settings
 	// PodPreset Resource = "podpresets"
 
 	// network
-	NetworkPolicy Resource = "NetworkPolicy"
+	NetworkPolicy Resource = "NetworkPolicies"
 
 	// autoscaling
-	HorizontalPodAutoscaler Resource = "HorizontalPodAutoscaler"
+	HorizontalPodAutoscaler Resource = "HorizontalPodAutoscalers"
 
 	// authentication
 
