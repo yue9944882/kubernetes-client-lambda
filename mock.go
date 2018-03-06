@@ -75,7 +75,6 @@ func newUnstructuredReactor() *testing.SimpleReactor {
 					action = createAction
 				}
 			}
-
 			originalReactFunc := testing.ObjectReaction(o)
 			handled, ret, err = originalReactFunc(action)
 			if err != nil {

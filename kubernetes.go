@@ -58,6 +58,8 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 				return informer.Lister().ByNamespace(namespace).Get(name)
 			}
 			tmpObj, err := i.Resource(api, namespace).Get(name, metav1.GetOptions{})
+			tmpObj.SetKind(gvk.Kind)
+			tmpObj.SetAPIVersion(gvk.Version)
 			if err != nil {
 				return nil, err
 			}
@@ -92,8 +94,13 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 			}
 			retObjs := []runtime.Object{}
 			for _, tmpObj := range tmpObjs {
+				tmpObj.(*unstructured.Unstructured).SetKind(gvk.Kind)
+				tmpObj.(*unstructured.Unstructured).SetAPIVersion(gvk.Version)
 				obj, err := scheme.Scheme.New(gvk)
 				if err != nil {
+					return nil, err
+				}
+				if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
 					return nil, err
 				}
 				buffer := new(bytes.Buffer)

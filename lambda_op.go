@@ -111,6 +111,7 @@ func (lambda *Lambda) CreateIfNotExist() (created, existed bool, err error) {
 					}
 				} else {
 					existed = true
+					created = true
 				}
 			}
 		},
