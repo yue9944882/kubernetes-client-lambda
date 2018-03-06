@@ -123,17 +123,14 @@ func (lambda *Lambda) Delete() (deleted bool, err error) {
 	err = lambda.run(
 		func() {
 			for item := range lambda.val {
-				accessor, err := meta.Accessor(item)
 				if err != nil {
 					lambda.addError(err)
 					continue
 				}
-				if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
-					if err := delete(lambda.clientInterface, lambda.rs, item); err != nil {
-						lambda.addError(err)
-					} else {
-						deleted = true
-					}
+				if err := delete(lambda.clientInterface, lambda.rs, item); err != nil {
+					lambda.addError(err)
+				} else {
+					deleted = true
 				}
 			}
 		},

@@ -1,12 +1,14 @@
 package lambda
 
 import (
+	"bytes"
 	"os"
 	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -71,15 +73,14 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 		listFunc: func(namespace string) ([]runtime.Object, error) {
 			if kcl.informerFactory != nil {
 				informer, err := kcl.informerFactory.ForResource(gvr)
-				if err != nil {
-					panic(err)
+				if err == nil {
+					if informer.Informer().LastSyncResourceVersion() == "" {
+						kcl.informerFactory.Start(make(chan struct{}))
+						// TODO: set timeout for waiting cache sync
+						cache.WaitForCacheSync(make(chan struct{}), informer.Informer().HasSynced)
+					}
+					return informer.Lister().ByNamespace(namespace).List(labels.Everything())
 				}
-				if informer.Informer().LastSyncResourceVersion() == "" {
-					kcl.informerFactory.Start(make(chan struct{}))
-					// TODO: set timeout for waiting cache sync
-					cache.WaitForCacheSync(make(chan struct{}), informer.Informer().HasSynced)
-				}
-				return informer.Lister().ByNamespace(namespace).List(labels.Everything())
 			}
 			tmpObjList, err := i.Resource(api, namespace).List(metav1.ListOptions{})
 			if err != nil {
@@ -93,9 +94,13 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 			for _, tmpObj := range tmpObjs {
 				obj, err := scheme.Scheme.New(gvk)
 				if err != nil {
-					panic(err)
+					return nil, err
 				}
-				if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
+				buffer := new(bytes.Buffer)
+				if err := unstructured.UnstructuredJSONScheme.Encode(tmpObj, buffer); err != nil {
+					return nil, err
+				}
+				if _, _, err := unstructured.UnstructuredJSONScheme.Decode(buffer.Bytes(), nil, obj); err != nil {
 					return nil, err
 				}
 				retObjs = append(retObjs, obj)
