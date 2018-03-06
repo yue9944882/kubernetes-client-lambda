@@ -2,12 +2,15 @@ package lambda
 
 import (
 	"bytes"
+	"fmt"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 //********************************************************
@@ -183,7 +186,7 @@ func (lambda *Lambda) Update() (updated bool, err error) {
 
 // UpdateIfExist checks if the element exists and update it value
 func (lambda *Lambda) UpdateIfExist() (updated, existed bool, err error) {
-	lambda.run(
+	err = lambda.run(
 		func() {
 			for item := range lambda.val {
 				accessor, err := meta.Accessor(item)
@@ -196,7 +199,10 @@ func (lambda *Lambda) UpdateIfExist() (updated, existed bool, err error) {
 						lambda.addError(err)
 					} else {
 						updated = true
+						existed = true
 					}
+				} else {
+					lambda.addError(err)
 				}
 			}
 		},
@@ -243,6 +249,33 @@ func castObjectToUnstructured(object runtime.Object) (*unstructured.Unstructured
 		return nil, err
 	}
 	return obj.(*unstructured.Unstructured), nil
+}
+
+func castUnstructuredToObject(gvk schema.GroupVersionKind, u *unstructured.Unstructured) (runtime.Object, error) {
+	for knownGvk := range scheme.Scheme.AllKnownTypes() {
+		if knownGvk.Kind == gvk.Kind {
+			gvk = knownGvk
+			break
+		}
+	}
+	if scheme.Scheme.Recognizes(gvk) {
+		obj, err := scheme.Scheme.New(gvk)
+		if err != nil {
+			return nil, err
+		}
+		scheme.Scheme.Default(obj)
+		buffer := new(bytes.Buffer)
+		err = unstructured.UnstructuredJSONScheme.Encode(u, buffer)
+		if err != nil {
+			return nil, err
+		}
+		_, _, err = unstructured.UnstructuredJSONScheme.Decode(buffer.Bytes(), nil, obj)
+		if err != nil {
+			return nil, err
+		}
+		return obj, nil
+	}
+	return nil, fmt.Errorf("unknown gvk: %#v", gvk)
 }
 
 func create(i dynamic.Interface, rs Resource, object runtime.Object) error {

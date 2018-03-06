@@ -1,7 +1,6 @@
 package lambda
 
 import (
-	"bytes"
 	"os"
 	"sync"
 	"time"
@@ -81,7 +80,14 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 						// TODO: set timeout for waiting cache sync
 						cache.WaitForCacheSync(make(chan struct{}), informer.Informer().HasSynced)
 					}
-					return informer.Lister().ByNamespace(namespace).List(labels.Everything())
+					objs, err := informer.Lister().ByNamespace(namespace).List(labels.Everything())
+					if err != nil {
+						return nil, err
+					}
+					for idx := range objs {
+						objs[idx].GetObjectKind().SetGroupVersionKind(gvk)
+					}
+					return objs, nil
 				}
 			}
 			tmpObjList, err := i.Resource(api, namespace).List(metav1.ListOptions{})
@@ -93,23 +99,20 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 				return nil, err
 			}
 			retObjs := []runtime.Object{}
+
 			for _, tmpObj := range tmpObjs {
 				tmpObj.(*unstructured.Unstructured).SetKind(gvk.Kind)
 				tmpObj.(*unstructured.Unstructured).SetAPIVersion(gvk.Version)
+
 				obj, err := scheme.Scheme.New(gvk)
 				if err != nil {
 					return nil, err
 				}
+
 				if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
 					return nil, err
 				}
-				buffer := new(bytes.Buffer)
-				if err := unstructured.UnstructuredJSONScheme.Encode(tmpObj, buffer); err != nil {
-					return nil, err
-				}
-				if _, _, err := unstructured.UnstructuredJSONScheme.Decode(buffer.Bytes(), nil, obj); err != nil {
-					return nil, err
-				}
+				obj.GetObjectKind().SetGroupVersionKind(gvk)
 				retObjs = append(retObjs, obj)
 			}
 			return retObjs, nil

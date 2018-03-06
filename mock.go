@@ -48,32 +48,23 @@ func newUnstructuredReactor() *testing.SimpleReactor {
 		Verb:     "*",
 		Resource: "*",
 		Reaction: func(action testing.Action) (handled bool, ret runtime.Object, err error) {
-			if createAction, ok := action.(testing.CreateActionImpl); ok {
-				gvk := createAction.GetObject().(*unstructured.Unstructured).GroupVersionKind()
-				for knownGvk := range scheme.Scheme.AllKnownTypes() {
-					if knownGvk.Kind == gvk.Kind {
-						gvk = knownGvk
-						break
-					}
+			switch typedAction := action.(type) {
+			case testing.CreateActionImpl:
+				gvk := typedAction.GetObject().(*unstructured.Unstructured).GroupVersionKind()
+				obj, err := castUnstructuredToObject(gvk, typedAction.GetObject().(*unstructured.Unstructured))
+				if err != nil {
+					return true, nil, err
 				}
-				if scheme.Scheme.Recognizes(gvk) {
-					obj, err := scheme.Scheme.New(gvk)
-					if err != nil {
-						return true, nil, err
-					}
-					scheme.Scheme.Default(obj)
-					buffer := new(bytes.Buffer)
-					err = unstructured.UnstructuredJSONScheme.Encode(createAction.Object, buffer)
-					if err != nil {
-						return true, nil, err
-					}
-					_, _, err = unstructured.UnstructuredJSONScheme.Decode(buffer.Bytes(), nil, obj)
-					if err != nil {
-						return true, nil, err
-					}
-					createAction.Object = obj
-					action = createAction
+				typedAction.Object = obj
+				action = typedAction
+			case testing.UpdateActionImpl:
+				gvk := typedAction.GetObject().(*unstructured.Unstructured).GroupVersionKind()
+				obj, err := castUnstructuredToObject(gvk, typedAction.GetObject().(*unstructured.Unstructured))
+				if err != nil {
+					return true, nil, err
 				}
+				typedAction.Object = obj
+				action = typedAction
 			}
 			originalReactFunc := testing.ObjectReaction(o)
 			handled, ret, err = originalReactFunc(action)
@@ -89,6 +80,11 @@ func newUnstructuredReactor() *testing.SimpleReactor {
 			case testing.DeleteActionImpl:
 				return
 			case testing.CreateActionImpl:
+				kind := action.Object.GetObjectKind().GroupVersionKind().Kind
+				apiVersion := action.Object.GetObjectKind().GroupVersionKind().Version
+				reflect.ValueOf(ret).Elem().FieldByName("Kind").Set(reflect.ValueOf(kind))
+				reflect.ValueOf(ret).Elem().FieldByName("APIVersion").Set(reflect.ValueOf(apiVersion))
+			case testing.UpdateActionImpl:
 				kind := action.Object.GetObjectKind().GroupVersionKind().Kind
 				apiVersion := action.Object.GetObjectKind().GroupVersionKind().Version
 				reflect.ValueOf(ret).Elem().FieldByName("Kind").Set(reflect.ValueOf(kind))
