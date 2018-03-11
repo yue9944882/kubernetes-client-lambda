@@ -26,6 +26,8 @@ script:
 # - go vet .
 - go test -race -coverprofile=test.out .
 - cat test.out >> coverage.txt
+- go test -race -coverprofile=test.out ./hack/test
+- cat test.out >> coverage.txt
 - kubectl get nodes
 - kubectl create -f https://raw.githubusercontent.com/kubernetes/kubernetes/master/examples/storage/redis/redis-controller.yaml
 - kubectl get rc
