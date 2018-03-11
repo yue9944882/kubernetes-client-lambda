@@ -153,9 +153,7 @@ func (lambda *Lambda) DeleteIfExist() (deleted, existed bool, err error) {
 					continue
 				}
 				if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
-					if err := delete(lambda.clientInterface, lambda.rs, item); err != nil {
-						lambda.addError(err)
-					} else {
+					if err := delete(lambda.clientInterface, lambda.rs, item); err == nil {
 						deleted = true
 						existed = true
 					}
