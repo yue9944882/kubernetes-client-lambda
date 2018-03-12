@@ -2,12 +2,10 @@ package lambda
 
 import (
 	"os"
-	"sync"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -23,10 +21,10 @@ import (
 type Resource string
 
 type kubernetesExecutable struct {
-	getFunc         func(namespace, name string) (runtime.Object, error)
-	listFunc        func(namespace string) ([]runtime.Object, error)
 	Rs              Resource
+	namespaces      []string
 	clientInterface dynamic.Interface
+	informer        informers.GenericInformer
 }
 
 // KubernetesClientLambda provides manipulation interface for resources
@@ -41,82 +39,21 @@ type kubernetesClientLambdaImpl struct {
 
 func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 	gvr := GetResouceIndexerInstance().GetGroupVersionResource(rs)
-	gvk := GetResouceIndexerInstance().GetGroupVersionKind(rs)
-	api := GetResouceIndexerInstance().GetAPIResource(rs)
 	i, err := kcl.clientPool.ClientForGroupVersionResource(gvr)
 	if err != nil {
 		panic(err)
 	}
+	informer, err := kcl.informerFactory.ForResource(gvr)
+	if err != nil {
+		panic(err)
+	}
+	if informer.Informer().LastSyncResourceVersion() == "" {
+		kcl.informerFactory.Start(make(chan struct{}))
+		// TODO: set timeout for waiting cache sync
+		cache.WaitForCacheSync(make(chan struct{}), informer.Informer().HasSynced)
+	}
+
 	return &kubernetesExecutable{
-		getFunc: func(namespace, name string) (runtime.Object, error) {
-			if kcl.informerFactory != nil {
-				informer, err := kcl.informerFactory.ForResource(gvr)
-				if err != nil {
-					return nil, err
-				}
-				return informer.Lister().ByNamespace(namespace).Get(name)
-			}
-			tmpObj, err := i.Resource(api, namespace).Get(name, metav1.GetOptions{})
-			if err != nil {
-				return nil, err
-			}
-			tmpObj.SetKind(gvk.Kind)
-			tmpObj.SetAPIVersion(gvk.Version)
-			obj, err := scheme.Scheme.New(gvk)
-			if err != nil {
-				panic(err)
-			}
-			if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
-				return nil, err
-			}
-			return obj, nil
-		},
-		listFunc: func(namespace string) ([]runtime.Object, error) {
-			if kcl.informerFactory != nil {
-				informer, err := kcl.informerFactory.ForResource(gvr)
-				if err == nil {
-					if informer.Informer().LastSyncResourceVersion() == "" {
-						kcl.informerFactory.Start(make(chan struct{}))
-						// TODO: set timeout for waiting cache sync
-						cache.WaitForCacheSync(make(chan struct{}), informer.Informer().HasSynced)
-					}
-					objs, err := informer.Lister().ByNamespace(namespace).List(labels.Everything())
-					if err != nil {
-						return nil, err
-					}
-					for idx := range objs {
-						objs[idx].GetObjectKind().SetGroupVersionKind(gvk)
-					}
-					return objs, nil
-				}
-			}
-			tmpObjList, err := i.Resource(api, namespace).List(metav1.ListOptions{})
-			if err != nil {
-				return nil, err
-			}
-			tmpObjs, err := meta.ExtractList(tmpObjList)
-			if err != nil {
-				return nil, err
-			}
-			retObjs := []runtime.Object{}
-
-			for _, tmpObj := range tmpObjs {
-				tmpObj.(*unstructured.Unstructured).SetKind(gvk.Kind)
-				tmpObj.(*unstructured.Unstructured).SetAPIVersion(gvk.Version)
-
-				obj, err := scheme.Scheme.New(gvk)
-				if err != nil {
-					return nil, err
-				}
-
-				if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
-					return nil, err
-				}
-				obj.GetObjectKind().SetGroupVersionKind(gvk)
-				retObjs = append(retObjs, obj)
-			}
-			return retObjs, nil
-		},
 		Rs:              rs,
 		clientInterface: i,
 	}
@@ -174,36 +111,103 @@ func OutOfClusterInContext(context string) KubernetesClientLambda {
 }
 
 func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
+	rs := exec.Rs
+	gvk := GetResouceIndexerInstance().GetGroupVersionKind(rs)
+	api := GetResouceIndexerInstance().GetAPIResource(rs)
+
+	exec.namespaces = namespaces
 	if len(namespaces) == 0 {
-		namespaces = []string{metav1.NamespaceAll}
+		exec.namespaces = []string{metav1.NamespaceAll}
 	}
-	ch := make(chan runtime.Object)
 
 	l := &Lambda{
-		getFunc:         exec.getFunc,
-		rs:              exec.Rs,
-		val:             ch,
-		clientInterface: exec.clientInterface,
-	}
-
-	var wg sync.WaitGroup
-	go func() {
-		for _, namespace := range namespaces {
-			wg.Add(1)
-			go func() {
-				objs, err := exec.listFunc(namespace)
+		rs:         exec.Rs,
+		namespaces: exec.namespaces,
+		getFunc: func(namespace, name string) (runtime.Object, error) {
+			if exec.informer != nil {
+				return exec.informer.Lister().ByNamespace(namespace).Get(name)
+			}
+			tmpObj, err := exec.clientInterface.Resource(api, namespace).Get(name, metav1.GetOptions{})
+			if err != nil {
+				return nil, err
+			}
+			obj, err := scheme.Scheme.New(gvk)
+			if err != nil {
+				panic(err)
+			}
+			if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
+				return nil, err
+			}
+			return obj, nil
+		},
+		listFunc: func(namespace string) ([]runtime.Object, error) {
+			if exec.informer != nil {
+				return exec.informer.Lister().ByNamespace(namespace).List(labels.Everything())
+			}
+			tmpObjList, err := exec.clientInterface.Resource(api, namespace).List(metav1.ListOptions{})
+			if err != nil {
+				return nil, err
+			}
+			tmpObjs, err := meta.ExtractList(tmpObjList)
+			if err != nil {
+				return nil, err
+			}
+			retObjs := []runtime.Object{}
+			for _, tmpObj := range tmpObjs {
+				obj, err := scheme.Scheme.New(gvk)
 				if err != nil {
 					panic(err)
 				}
-				for _, obj := range objs {
-					ch <- obj
+				if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
+					return nil, err
 				}
-				wg.Done()
-			}()
-		}
-		wg.Wait()
-		close(ch)
-	}()
+				retObjs = append(retObjs, obj)
+			}
+			return retObjs, nil
+		},
+		createFunc: func(object runtime.Object) error {
+			api := GetResouceIndexerInstance().GetAPIResource(rs)
+			accessor, err := meta.Accessor(object)
+			if err != nil {
+				return err
+			}
+			tmpObj, err := castObjectToUnstructured(object)
+			if err != nil {
+				return err
+			}
+			if _, err := exec.clientInterface.Resource(api, accessor.GetNamespace()).Create(tmpObj); err != nil {
+				return err
+			}
+			return nil
+		},
+		updateFunc: func(object runtime.Object) error {
+			api := GetResouceIndexerInstance().GetAPIResource(rs)
+			accessor, err := meta.Accessor(object)
+			if err != nil {
+				return err
+			}
+			tmpObj, err := castObjectToUnstructured(object)
+			if err != nil {
+				return err
+			}
+			if _, err := exec.clientInterface.Resource(api, accessor.GetNamespace()).Update(tmpObj); err != nil {
+				return err
+			}
+			return nil
+		},
+		deleteFunc: func(object runtime.Object) error {
+			api := GetResouceIndexerInstance().GetAPIResource(rs)
+			accessor, err := meta.Accessor(object)
+			if err != nil {
+				return err
+			}
+			if err := exec.clientInterface.Resource(api, accessor.GetNamespace()).Delete(accessor.GetName(), &metav1.DeleteOptions{}); err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+
 	return l
 }
 
@@ -215,15 +219,3 @@ func (exec *kubernetesExecutable) WatchNamespace(namespace string) KubernetesWat
 	}
 }
 */
-
-func listResourceViaInformer(informerFactory informers.SharedInformerFactory, rs Resource, namespace string) (objs []runtime.Object, err error) {
-	gvr := GetResouceIndexerInstance().GetGroupVersionResource(rs)
-	informer, err := informerFactory.ForResource(gvr)
-	isNamespaced := GetResouceIndexerInstance().IsNamespaced(rs)
-	if isNamespaced {
-		objs, err = informer.Lister().ByNamespace(namespace).List(labels.Everything())
-	} else {
-		objs, err = informer.Lister().List(labels.Everything())
-	}
-	return
-}
