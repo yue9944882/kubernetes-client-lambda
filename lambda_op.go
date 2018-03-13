@@ -82,6 +82,7 @@ func (lambda *Lambda) List() *Lambda {
 	ch := make(chan runtime.Object)
 	go func() {
 		for _, namespace := range lambda.namespaces {
+			namespace := namespace
 			wg.Add(1)
 			go func() {
 				objs, err := lambda.listFunc(namespace)

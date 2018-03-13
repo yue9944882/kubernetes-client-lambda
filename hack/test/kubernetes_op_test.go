@@ -197,7 +197,6 @@ func TestDeleteIfNotExist(t *testing.T) {
 		testConfigMapName := "test-abc"
 		created, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
-			NamePrefix("test-").
 			Add(
 				func() *corev1.ConfigMap {
 					cm := &corev1.ConfigMap{}
@@ -229,5 +228,45 @@ func TestDeleteIfNotExist(t *testing.T) {
 		assert.NoError(t, err, "some error")
 	}
 	testFunc(kcl.OutOfClusterDefault())
+	testFunc(kcl.Mock())
+}
+
+func TestMultiNamespaceList(t *testing.T) {
+	testFunc := func(kclInterface kcl.KubernetesClientLambda) {
+		testConfigMapName := "test-abc"
+		created, err := kclInterface.Type(kcl.ConfigMap).
+			InNamespace(metav1.NamespaceDefault).
+			Add(
+				func() *corev1.ConfigMap {
+					cm := &corev1.ConfigMap{}
+					cm.Name = testConfigMapName + "1"
+					cm.Kind = "ConfigMap"
+					cm.Namespace = "testns1"
+					return cm
+				},
+			).
+			Add(
+				func() *corev1.ConfigMap {
+					cm := &corev1.ConfigMap{}
+					cm.Name = testConfigMapName + "2"
+					cm.Kind = "ConfigMap"
+					cm.Namespace = "testns2"
+					return cm
+				},
+			).
+			Create()
+		assert.Equal(t, true, created, "not created")
+		assert.NoError(t, err, "some error")
+		time.Sleep(time.Second)
+		count := 0
+		kclInterface.Type(kcl.ConfigMap).
+			InNamespace("testns1", "testns2").
+			List().
+			Each(func(cm *corev1.ConfigMap) {
+				count++
+			})
+		assert.Equal(t, 2, count, "count mismatch")
+
+	}
 	testFunc(kcl.Mock())
 }
