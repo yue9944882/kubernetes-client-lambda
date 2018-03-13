@@ -116,6 +116,10 @@ func (lambda *Lambda) clone() (*Lambda, chan runtime.Object) {
 		val:             ch,
 		Errors:          lambda.Errors,
 		getFunc:         lambda.getFunc,
+		listFunc:        lambda.listFunc,
+		createFunc:      lambda.createFunc,
+		updateFunc:      lambda.updateFunc,
+		deleteFunc:      lambda.deleteFunc,
 		clientInterface: lambda.clientInterface,
 	}
 	return l, ch

@@ -43,14 +43,16 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 	if err != nil {
 		panic(err)
 	}
-	informer, err := kcl.informerFactory.ForResource(gvr)
-	if err != nil {
-		panic(err)
-	}
-	if informer.Informer().LastSyncResourceVersion() == "" {
-		kcl.informerFactory.Start(make(chan struct{}))
-		// TODO: set timeout for waiting cache sync
-		cache.WaitForCacheSync(make(chan struct{}), informer.Informer().HasSynced)
+	if kcl.informerFactory != nil {
+		informer, err := kcl.informerFactory.ForResource(gvr)
+		if err != nil {
+			panic(err)
+		}
+		if informer.Informer().LastSyncResourceVersion() == "" {
+			kcl.informerFactory.Start(make(chan struct{}))
+			// TODO: set timeout for waiting cache sync
+			cache.WaitForCacheSync(make(chan struct{}), informer.Informer().HasSynced)
+		}
 	}
 
 	return &kubernetesExecutable{
@@ -116,6 +118,9 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 	api := GetResouceIndexerInstance().GetAPIResource(rs)
 
 	exec.namespaces = namespaces
+
+	ch := make(chan runtime.Object)
+
 	if len(namespaces) == 0 {
 		exec.namespaces = []string{metav1.NamespaceAll}
 	}
@@ -123,6 +128,7 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 	l := &Lambda{
 		rs:         exec.Rs,
 		namespaces: exec.namespaces,
+		val:        ch,
 		getFunc: func(namespace, name string) (runtime.Object, error) {
 			if exec.informer != nil {
 				return exec.informer.Lister().ByNamespace(namespace).Get(name)
@@ -135,6 +141,7 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 			if err != nil {
 				panic(err)
 			}
+			tmpObj.GetObjectKind().SetGroupVersionKind(gvk)
 			if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
 				return nil, err
 			}
@@ -158,6 +165,7 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 				if err != nil {
 					panic(err)
 				}
+				tmpObj.GetObjectKind().SetGroupVersionKind(gvk)
 				if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
 					return nil, err
 				}
@@ -186,6 +194,7 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 			if err != nil {
 				return err
 			}
+			object.GetObjectKind().SetGroupVersionKind(gvk)
 			tmpObj, err := castObjectToUnstructured(object)
 			if err != nil {
 				return err
@@ -207,6 +216,7 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 			return nil
 		},
 	}
+	close(ch)
 
 	return l
 }

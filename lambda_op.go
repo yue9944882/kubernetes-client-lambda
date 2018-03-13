@@ -150,17 +150,10 @@ func (lambda *Lambda) Delete() (deleted bool, err error) {
 	err = lambda.run(
 		func() {
 			for item := range lambda.val {
-				accessor, err := meta.Accessor(item)
-				if err != nil {
+				if err := lambda.deleteFunc(item); err != nil {
 					lambda.addError(err)
-					continue
-				}
-				if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
-					if err := lambda.deleteFunc(item); err != nil {
-						lambda.addError(err)
-					} else {
-						deleted = true
-					}
+				} else {
+					deleted = true
 				}
 			}
 		},
@@ -252,7 +245,7 @@ func (lambda *Lambda) UpdateOrCreate() (updated, created bool, err error) {
 						updated = true
 					}
 				} else {
-					if err := lambda.updateFunc(item); err != nil {
+					if err := lambda.createFunc(item); err != nil {
 						lambda.addError(err)
 					} else {
 						created = true
