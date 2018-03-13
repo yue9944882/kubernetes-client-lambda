@@ -74,9 +74,15 @@ func callProducer(f interface{}) interface{} {
 // fail-hard needs call MustNoError method. The error can be also be returned at the end of a pipeline
 // via lambda operation method which is defined in lambda_operation.go
 type Lambda struct {
-	getFunc         func(namespace, name string) (runtime.Object, error)
+	getFunc    func(namespace, name string) (runtime.Object, error)
+	listFunc   func(namespace string) ([]runtime.Object, error)
+	createFunc func(runtime.Object) error
+	updateFunc func(runtime.Object) error
+	deleteFunc func(runtime.Object) error
+
 	clientInterface dynamic.Interface
 	rs              Resource
+	namespaces      []string
 	val             <-chan runtime.Object
 	Errors          []error
 }
@@ -110,6 +116,10 @@ func (lambda *Lambda) clone() (*Lambda, chan runtime.Object) {
 		val:             ch,
 		Errors:          lambda.Errors,
 		getFunc:         lambda.getFunc,
+		listFunc:        lambda.listFunc,
+		createFunc:      lambda.createFunc,
+		updateFunc:      lambda.updateFunc,
+		deleteFunc:      lambda.deleteFunc,
 		clientInterface: lambda.clientInterface,
 	}
 	return l, ch

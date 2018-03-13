@@ -3,13 +3,12 @@ package lambda
 import (
 	"bytes"
 	"fmt"
+	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes/scheme"
 )
 
@@ -77,13 +76,39 @@ func (lambda *Lambda) Each(function Function) error {
 // Kubernetes Operation
 //********************************************************
 
+// List lists all items indexed in the local cache
+func (lambda *Lambda) List() *Lambda {
+	var wg sync.WaitGroup
+	ch := make(chan runtime.Object)
+	go func() {
+		for _, namespace := range lambda.namespaces {
+			namespace := namespace
+			wg.Add(1)
+			go func() {
+				objs, err := lambda.listFunc(namespace)
+				if err != nil {
+					panic(err)
+				}
+				for _, obj := range objs {
+					ch <- obj
+				}
+				wg.Done()
+			}()
+		}
+		wg.Wait()
+		close(ch)
+	}()
+	lambda.val = ch
+	return lambda
+}
+
 // Create creates every element remains in lambda collection
 // Returns true if every element is successfully created and lambda error chain
 // Fails if any element already exists
 func (lambda *Lambda) Create() (created bool, err error) {
 	err = lambda.run(func() {
 		for item := range lambda.val {
-			if err := create(lambda.clientInterface, lambda.rs, item); err != nil {
+			if err := lambda.createFunc(item); err != nil {
 				lambda.addError(err)
 				continue
 			} else {
@@ -105,9 +130,8 @@ func (lambda *Lambda) CreateIfNotExist() (created, existed bool, err error) {
 					lambda.addError(err)
 					continue
 				}
-				if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err != nil {
-					// TODO: judge if the error is errors.StatusError
-					if err := create(lambda.clientInterface, lambda.rs, item); err != nil {
+				if obj, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err != nil {
+					if err := lambda.createFunc(obj); err != nil {
 						lambda.addError(err)
 					} else {
 						created = true
@@ -127,11 +151,7 @@ func (lambda *Lambda) Delete() (deleted bool, err error) {
 	err = lambda.run(
 		func() {
 			for item := range lambda.val {
-				if err != nil {
-					lambda.addError(err)
-					continue
-				}
-				if err := delete(lambda.clientInterface, lambda.rs, item); err != nil {
+				if err := lambda.deleteFunc(item); err != nil {
 					lambda.addError(err)
 				} else {
 					deleted = true
@@ -153,7 +173,9 @@ func (lambda *Lambda) DeleteIfExist() (deleted, existed bool, err error) {
 					continue
 				}
 				if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
-					if err := delete(lambda.clientInterface, lambda.rs, item); err == nil {
+					if err := lambda.deleteFunc(item); err != nil {
+						lambda.addError(err)
+					} else {
 						deleted = true
 						existed = true
 					}
@@ -171,7 +193,7 @@ func (lambda *Lambda) Update() (updated bool, err error) {
 	err = lambda.run(
 		func() {
 			for item := range lambda.val {
-				if err := update(lambda.clientInterface, lambda.rs, item); err != nil {
+				if err := lambda.updateFunc(item); err != nil {
 					lambda.addError(err)
 				} else {
 					updated = true
@@ -193,7 +215,7 @@ func (lambda *Lambda) UpdateIfExist() (updated, existed bool, err error) {
 					continue
 				}
 				if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
-					if err := update(lambda.clientInterface, lambda.rs, item); err != nil {
+					if err := lambda.updateFunc(item); err != nil {
 						lambda.addError(err)
 					} else {
 						updated = true
@@ -218,13 +240,13 @@ func (lambda *Lambda) UpdateOrCreate() (updated, created bool, err error) {
 					continue
 				}
 				if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err == nil {
-					if err := update(lambda.clientInterface, lambda.rs, item); err != nil {
+					if err := lambda.updateFunc(item); err != nil {
 						lambda.addError(err)
 					} else {
 						updated = true
 					}
 				} else {
-					if err := create(lambda.clientInterface, lambda.rs, item); err != nil {
+					if err := lambda.createFunc(item); err != nil {
 						lambda.addError(err)
 					} else {
 						created = true
@@ -274,48 +296,4 @@ func castUnstructuredToObject(gvk schema.GroupVersionKind, u *unstructured.Unstr
 		return obj, nil
 	}
 	return nil, fmt.Errorf("unknown gvk: %#v", gvk)
-}
-
-func create(i dynamic.Interface, rs Resource, object runtime.Object) error {
-	api := GetResouceIndexerInstance().GetAPIResource(rs)
-	accessor, err := meta.Accessor(object)
-	if err != nil {
-		return err
-	}
-	tmpObj, err := castObjectToUnstructured(object)
-	if err != nil {
-		return err
-	}
-	if _, err := i.Resource(api, accessor.GetNamespace()).Create(tmpObj); err != nil {
-		return err
-	}
-	return nil
-}
-
-func delete(i dynamic.Interface, rs Resource, object runtime.Object) error {
-	api := GetResouceIndexerInstance().GetAPIResource(rs)
-	accessor, err := meta.Accessor(object)
-	if err != nil {
-		return err
-	}
-	if err := i.Resource(api, accessor.GetNamespace()).Delete(accessor.GetName(), &metav1.DeleteOptions{}); err != nil {
-		return err
-	}
-	return nil
-}
-
-func update(i dynamic.Interface, rs Resource, object runtime.Object) error {
-	api := GetResouceIndexerInstance().GetAPIResource(rs)
-	accessor, err := meta.Accessor(object)
-	if err != nil {
-		return err
-	}
-	tmpObj, err := castObjectToUnstructured(object)
-	if err != nil {
-		return err
-	}
-	if _, err := i.Resource(api, accessor.GetNamespace()).Update(tmpObj); err != nil {
-		return err
-	}
-	return nil
 }

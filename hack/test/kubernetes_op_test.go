@@ -16,6 +16,7 @@ func TestSimpleConfigMapManipulation(t *testing.T) {
 		testConfigMapName := "test-xyz"
 		created, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
+			List().
 			NamePrefix("test-").
 			Add(
 				func() *corev1.ConfigMap {
@@ -28,13 +29,17 @@ func TestSimpleConfigMapManipulation(t *testing.T) {
 			).Create()
 		assert.Equal(t, true, created, "not created")
 		assert.NoError(t, err, "some error")
+		time.Sleep(time.Second)
+
 		notempty, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
+			List().
 			NotEmpty()
 		assert.Equal(t, true, notempty, "shouldn't be empty")
 		assert.NoError(t, err, "some error")
 		deleted, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
+			List().
 			NameEqual(testConfigMapName).
 			Delete()
 		assert.Equal(t, true, deleted, "deletion failed")
@@ -49,6 +54,7 @@ func TestCreateIfNotExist(t *testing.T) {
 		testConfigMapName := "test-abc"
 		created, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
+			List().
 			NamePrefix("test-").
 			Add(
 				func() *corev1.ConfigMap {
@@ -65,6 +71,7 @@ func TestCreateIfNotExist(t *testing.T) {
 
 		created, existed, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
+			List().
 			NameEqual(testConfigMapName).
 			Add(
 				func() *corev1.ConfigMap {
@@ -80,6 +87,7 @@ func TestCreateIfNotExist(t *testing.T) {
 		assert.NoError(t, err, "some error")
 		deleted, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
+			List().
 			NameEqual(testConfigMapName).
 			Delete()
 		assert.Equal(t, true, deleted, "deletion failed")
@@ -94,6 +102,7 @@ func TestUpdateIfExist(t *testing.T) {
 		testConfigMapName := "test-abc"
 		created, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
+			List().
 			NameEqual("test-abc").
 			Add(
 				func() *corev1.ConfigMap {
@@ -110,6 +119,7 @@ func TestUpdateIfExist(t *testing.T) {
 
 		updated, existed, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
+			List().
 			NameEqual(testConfigMapName).
 			Iter(
 				func(cm *corev1.ConfigMap) {
@@ -124,6 +134,7 @@ func TestUpdateIfExist(t *testing.T) {
 
 		deleted, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
+			List().
 			NameEqual(testConfigMapName).
 			Delete()
 		assert.Equal(t, true, deleted, "deletion failed")
@@ -138,6 +149,7 @@ func TestUpdateOrCreate(t *testing.T) {
 		testConfigMapName := "test-abc"
 		updated, created, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
+			List().
 			NameEqual("test-abc").
 			Add(
 				func() *corev1.ConfigMap {
@@ -149,11 +161,13 @@ func TestUpdateOrCreate(t *testing.T) {
 				},
 			).UpdateOrCreate()
 		assert.Equal(t, true, created, "not created")
-		assert.Equal(t, false, updated, "not created")
+		assert.Equal(t, false, updated, "not updated")
 		assert.NoError(t, err, "some error")
 		time.Sleep(time.Second)
+
 		updated, created, err = kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
+			List().
 			NameEqual(testConfigMapName).
 			Iter(
 				func(cm *corev1.ConfigMap) {
@@ -168,12 +182,13 @@ func TestUpdateOrCreate(t *testing.T) {
 
 		deleted, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
+			List().
 			NameEqual(testConfigMapName).
 			Delete()
 		assert.Equal(t, true, deleted, "deletion failed")
 		assert.NoError(t, err, "some error")
 	}
-	testFunc(kcl.OutOfClusterDefault())
+	// testFunc(kcl.OutOfClusterDefault())
 	testFunc(kcl.Mock())
 }
 
@@ -182,7 +197,6 @@ func TestDeleteIfNotExist(t *testing.T) {
 		testConfigMapName := "test-abc"
 		created, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
-			NamePrefix("test-").
 			Add(
 				func() *corev1.ConfigMap {
 					cm := &corev1.ConfigMap{}
@@ -198,6 +212,7 @@ func TestDeleteIfNotExist(t *testing.T) {
 
 		deleted, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
+			List().
 			NameEqual(testConfigMapName).
 			Delete()
 		assert.Equal(t, true, deleted, "deletion failed")
@@ -205,6 +220,7 @@ func TestDeleteIfNotExist(t *testing.T) {
 
 		deleted, existed, err := kclInterface.Type(kcl.ConfigMap).
 			InNamespace(metav1.NamespaceDefault).
+			List().
 			NameEqual(testConfigMapName).
 			DeleteIfExist()
 		assert.Equal(t, false, deleted, "deletion failed")
@@ -212,5 +228,45 @@ func TestDeleteIfNotExist(t *testing.T) {
 		assert.NoError(t, err, "some error")
 	}
 	testFunc(kcl.OutOfClusterDefault())
+	testFunc(kcl.Mock())
+}
+
+func TestMultiNamespaceList(t *testing.T) {
+	testFunc := func(kclInterface kcl.KubernetesClientLambda) {
+		testConfigMapName := "test-abc"
+		created, err := kclInterface.Type(kcl.ConfigMap).
+			InNamespace(metav1.NamespaceDefault).
+			Add(
+				func() *corev1.ConfigMap {
+					cm := &corev1.ConfigMap{}
+					cm.Name = testConfigMapName + "1"
+					cm.Kind = "ConfigMap"
+					cm.Namespace = "testns1"
+					return cm
+				},
+			).
+			Add(
+				func() *corev1.ConfigMap {
+					cm := &corev1.ConfigMap{}
+					cm.Name = testConfigMapName + "2"
+					cm.Kind = "ConfigMap"
+					cm.Namespace = "testns2"
+					return cm
+				},
+			).
+			Create()
+		assert.Equal(t, true, created, "not created")
+		assert.NoError(t, err, "some error")
+		time.Sleep(time.Second)
+		count := 0
+		kclInterface.Type(kcl.ConfigMap).
+			InNamespace("testns1", "testns2").
+			List().
+			Each(func(cm *corev1.ConfigMap) {
+				count++
+			})
+		assert.Equal(t, 2, count, "count mismatch")
+
+	}
 	testFunc(kcl.Mock())
 }
