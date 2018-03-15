@@ -2,7 +2,6 @@ package lambda
 
 import (
 	"bytes"
-	"fmt"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -272,28 +271,19 @@ func castObjectToUnstructured(object runtime.Object) (*unstructured.Unstructured
 }
 
 func castUnstructuredToObject(gvk schema.GroupVersionKind, u *unstructured.Unstructured) (runtime.Object, error) {
-	for knownGvk := range scheme.Scheme.AllKnownTypes() {
-		if knownGvk.Kind == gvk.Kind {
-			gvk = knownGvk
-			break
-		}
+	obj, err := scheme.Scheme.New(gvk)
+	if err != nil {
+		return nil, err
 	}
-	if scheme.Scheme.Recognizes(gvk) {
-		obj, err := scheme.Scheme.New(gvk)
-		if err != nil {
-			return nil, err
-		}
-		scheme.Scheme.Default(obj)
-		buffer := new(bytes.Buffer)
-		err = unstructured.UnstructuredJSONScheme.Encode(u, buffer)
-		if err != nil {
-			return nil, err
-		}
-		_, _, err = unstructured.UnstructuredJSONScheme.Decode(buffer.Bytes(), nil, obj)
-		if err != nil {
-			return nil, err
-		}
-		return obj, nil
+	scheme.Scheme.Default(obj)
+	buffer := new(bytes.Buffer)
+	err = unstructured.UnstructuredJSONScheme.Encode(u, buffer)
+	if err != nil {
+		return nil, err
 	}
-	return nil, fmt.Errorf("unknown gvk: %#v", gvk)
+	_, _, err = unstructured.UnstructuredJSONScheme.Decode(buffer.Bytes(), nil, obj)
+	if err != nil {
+		return nil, err
+	}
+	return obj, nil
 }

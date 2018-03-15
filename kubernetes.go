@@ -132,15 +132,8 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 			if err != nil {
 				return nil, err
 			}
-			obj, err := scheme.Scheme.New(gvk)
-			if err != nil {
-				panic(err)
-			}
 			tmpObj.GetObjectKind().SetGroupVersionKind(gvk)
-			if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
-				return nil, err
-			}
-			return obj, nil
+			return castUnstructuredToObject(gvk, tmpObj)
 		},
 		listFunc: func(namespace string) ([]runtime.Object, error) {
 			if exec.informer != nil {

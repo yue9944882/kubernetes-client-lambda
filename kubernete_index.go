@@ -1,10 +1,10 @@
 package lambda
 
 import (
+	"fmt"
 	"reflect"
 	"sort"
 	"strings"
-	"unicode"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -40,32 +40,27 @@ func (s SortedGVKs) Len() int { return len(s) }
 func (s SortedGVKs) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func (s SortedGVKs) Less(i, j int) bool {
-	iRunes := []rune(s[i].Group)
-	jRunes := []rune(s[j].Group)
+	vi := s[i].Version
+	vj := s[j].Version
 
-	max := len(iRunes)
-	if max > len(jRunes) {
-		max = len(jRunes)
+	iLen := len(vi)
+	jLen := len(vj)
+
+	minLen := iLen
+
+	if minLen > jLen {
+		minLen = jLen
 	}
 
-	for idx := 0; idx < max; idx++ {
-		ir := iRunes[idx]
-		jr := jRunes[idx]
-
-		lir := unicode.ToLower(ir)
-		ljr := unicode.ToLower(jr)
-
-		if lir != ljr {
-			return lir < ljr
-		}
-
-		// the lowercase runes are the same, so compare the original
-		if ir != jr {
-			return ir < jr
+	for idx := 0; idx < minLen; idx++ {
+		if vi[idx] < vj[idx] {
+			return true
+		} else if vi[idx] > vj[idx] {
+			return false
 		}
 	}
 
-	return false
+	return iLen < jLen
 }
 
 func initIndexer() {
@@ -77,28 +72,34 @@ func initIndexer() {
 	for gvk := range scheme.Scheme.AllKnownTypes() {
 		knownGvks = append(knownGvks, gvk)
 	}
-	sort.Sort(SortedGVKs(knownGvks))
+	gvks := SortedGVKs(knownGvks)
+	sort.Sort(gvks)
+	indexedMap := map[Resource]bool{}
 	for _, gvk := range knownGvks {
+		gvk := gvk
 		for _, supportedResource := range GetResources() {
 			pluralGvr, singularGvr := meta.UnsafeGuessKindToResource(gvk)
 			if pluralGvr.Resource == strings.ToLower(string(supportedResource)) {
-				gvkGroup := strings.SplitN(gvk.Group, ".", 2)[0]
-				if gvkGroup == "" {
-					gvkGroup = "core"
+				if !indexedMap[supportedResource] {
+					gvkGroup := strings.SplitN(gvk.Group, ".", 2)[0]
+					if gvkGroup == "" {
+						gvkGroup = "core"
+					}
+					gvMethod := reflect.ValueOf(i).MethodByName(
+						capitalizeFirstLetter(gvkGroup) + capitalizeFirstLetter(gvk.Version),
+					).Call([]reflect.Value{})[0]
+					namespaced := gvMethod.MethodByName(string(supportedResource)).Type().NumIn() != 0
+					apiRs := metav1.APIResource{
+						Name:         pluralGvr.Resource,
+						SingularName: singularGvr.Resource,
+						Namespaced:   namespaced,
+						Group:        gvk.Group,
+						Version:      gvk.Version,
+						Kind:         gvk.Kind,
+					}
+					indexer.store[supportedResource] = &apiRs
+					indexedMap[supportedResource] = true
 				}
-				gvMethod := reflect.ValueOf(i).MethodByName(
-					capitalizeFirstLetter(gvkGroup) + capitalizeFirstLetter(gvk.Version),
-				).Call([]reflect.Value{})[0]
-				namespaced := gvMethod.MethodByName(string(supportedResource)).Type().NumIn() != 0
-				apiRs := metav1.APIResource{
-					Name:         pluralGvr.Resource,
-					SingularName: singularGvr.Resource,
-					Namespaced:   namespaced,
-					Group:        gvk.Group,
-					Version:      gvk.Version,
-					Kind:         gvk.Kind,
-				}
-				indexer.store[supportedResource] = &apiRs
 			}
 		}
 	}
@@ -125,6 +126,9 @@ func (indexer *resourceIndexerImpl) IsNamespaced(resource Resource) bool {
 
 func (indexer *resourceIndexerImpl) GetGroupVersionResource(resource Resource) schema.GroupVersionResource {
 	apiResource := indexer.store[resource]
+	if apiResource == nil {
+		panic(fmt.Sprintf("unindexed resource %s", resource))
+	}
 	return schema.GroupVersionResource{
 		Group:    apiResource.Group,
 		Version:  apiResource.Version,
