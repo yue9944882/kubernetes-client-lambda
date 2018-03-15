@@ -2,7 +2,9 @@ package lambda
 
 import (
 	"reflect"
+	"sort"
 	"strings"
+	"unicode"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,12 +33,52 @@ func init() {
 	initIndexer()
 }
 
+type SortedGVKs []schema.GroupVersionKind
+
+func (s SortedGVKs) Len() int { return len(s) }
+
+func (s SortedGVKs) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
+
+func (s SortedGVKs) Less(i, j int) bool {
+	iRunes := []rune(s[i].Group)
+	jRunes := []rune(s[j].Group)
+
+	max := len(iRunes)
+	if max > len(jRunes) {
+		max = len(jRunes)
+	}
+
+	for idx := 0; idx < max; idx++ {
+		ir := iRunes[idx]
+		jr := jRunes[idx]
+
+		lir := unicode.ToLower(ir)
+		ljr := unicode.ToLower(jr)
+
+		if lir != ljr {
+			return lir < ljr
+		}
+
+		// the lowercase runes are the same, so compare the original
+		if ir != jr {
+			return ir < jr
+		}
+	}
+
+	return false
+}
+
 func initIndexer() {
 	i := fake.NewSimpleClientset()
 	indexer := &resourceIndexerImpl{
 		store: make(map[Resource]*metav1.APIResource),
 	}
+	knownGvks := []schema.GroupVersionKind{}
 	for gvk := range scheme.Scheme.AllKnownTypes() {
+		knownGvks = append(knownGvks, gvk)
+	}
+	sort.Sort(SortedGVKs(knownGvks))
+	for _, gvk := range knownGvks {
 		for _, supportedResource := range GetResources() {
 			pluralGvr, singularGvr := meta.UnsafeGuessKindToResource(gvk)
 			if pluralGvr.Resource == strings.ToLower(string(supportedResource)) {
