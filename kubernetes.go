@@ -75,12 +75,6 @@ func getKCLFromConfig(config *rest.Config) *kubernetesClientLambdaImpl {
 		panic(err)
 	}
 
-	// Resource discovery
-	// Must succeed: panics on failure
-	func() {
-		initIndexer(clientset)
-	}()
-
 	factory := informers.NewSharedInformerFactory(clientset, time.Minute)
 	return &kubernetesClientLambdaImpl{
 		informerFactory: factory,

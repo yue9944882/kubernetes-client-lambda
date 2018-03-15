@@ -188,7 +188,7 @@ func TestUpdateOrCreate(t *testing.T) {
 		assert.Equal(t, true, deleted, "deletion failed")
 		assert.NoError(t, err, "some error")
 	}
-	// testFunc(kcl.OutOfClusterDefault())
+	testFunc(kcl.OutOfClusterDefault())
 	testFunc(kcl.Mock())
 }
 
