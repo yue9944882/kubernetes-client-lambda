@@ -26,18 +26,23 @@ import kubernetes "github.com/yue9944882/kubernetes-client-lambda"
 
 // In-Cluster example
 // var kcl kubernetes.KubernetesClientLambda = kubernetes.InCluster()
-kubernetes.InCluster().Type(kubernetes.ReplicaSet).InNamespace("test").NamePrefix("foo-").Map(func(rs *api_ext_v1.ReplicaSet) rs*api_ext_v1.ReplicaSet {
-    // Edit in-place or clone a new one
-    rs.Meta.Labels["foo-label1"] = "test" 
-    return rs
-}).Update()
+kubernetes.InCluster().Type(kubernetes.ReplicaSet).InNamespace("test").
+    List().
+    NamePrefix("foo-").
+    Map(func(rs *api_ext_v1.ReplicaSet) rs*api_ext_v1.ReplicaSet {
+        // Edit in-place or clone a new one
+        rs.Meta.Labels["foo-label1"] = "test" 
+        return rs
+    }).Update()
 
 
 // Out-Of-Cluster example
-kubernetes.OutOfClusterDefault().Type(kubernetes.Pod).InNamespace("devops").NameEqual("test-pod").Each(
-    func(pod *api_v1.Pod) {
-        count++
-})
+kubernetes.OutOfClusterDefault().Type(kubernetes.Pod).InNamespace("devops").
+    List().
+    NameEqual("test-pod").Each(
+        func(pod *api_v1.Pod) {
+            count++
+    })
 ```
 
 As the following example is shown, Calling `Mock()` on Kubernetes Type Enumeration will create the expected mocking resources for you:
