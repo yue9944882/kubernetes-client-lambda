@@ -1,7 +1,6 @@
 package lambda
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
 
@@ -58,7 +57,6 @@ func initIndexer() {
 					Kind:         gvk.Kind,
 				}
 				indexer.store[supportedResource] = &apiRs
-				fmt.Printf("%#v\n", apiRs)
 			}
 		}
 	}

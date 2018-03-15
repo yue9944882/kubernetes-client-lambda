@@ -130,8 +130,8 @@ func (lambda *Lambda) CreateIfNotExist() (created, existed bool, err error) {
 					lambda.addError(err)
 					continue
 				}
-				if obj, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err != nil {
-					if err := lambda.createFunc(obj); err != nil {
+				if _, err := lambda.getFunc(accessor.GetNamespace(), accessor.GetName()); err != nil {
+					if err := lambda.createFunc(item); err != nil {
 						lambda.addError(err)
 					} else {
 						created = true
