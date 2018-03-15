@@ -6,6 +6,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
@@ -155,15 +156,24 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 			}
 			retObjs := []runtime.Object{}
 			for _, tmpObj := range tmpObjs {
-				obj, err := scheme.Scheme.New(gvk)
-				if err != nil {
-					panic(err)
-				}
 				tmpObj.GetObjectKind().SetGroupVersionKind(gvk)
-				if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
-					return nil, err
+				if unstrct, ok := tmpObj.(*unstructured.Unstructured); ok {
+					obj, err := castUnstructuredToObject(gvk, unstrct)
+					if err != nil {
+						panic(err)
+					}
+					retObjs = append(retObjs, obj)
+				} else {
+					obj, err := scheme.Scheme.New(gvk)
+					if err != nil {
+						panic(err)
+					}
+					tmpObj.GetObjectKind().SetGroupVersionKind(gvk)
+					if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
+						return nil, err
+					}
+					retObjs = append(retObjs, obj)
 				}
-				retObjs = append(retObjs, obj)
 			}
 			return retObjs, nil
 		},
@@ -173,6 +183,7 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 			if err != nil {
 				return err
 			}
+			object.GetObjectKind().SetGroupVersionKind(gvk)
 			tmpObj, err := castObjectToUnstructured(object)
 			if err != nil {
 				return err
