@@ -1,11 +1,15 @@
 package lambda
 
 import (
+	"fmt"
+	"reflect"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/discovery"
+	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var indexerInitialized bool
@@ -24,30 +28,37 @@ type resourceIndexerImpl struct {
 	store map[Resource]*metav1.APIResource
 }
 
-func initIndexer(i discovery.DiscoveryInterface) {
+func init() {
+	initIndexer()
+}
+
+func initIndexer() {
+	i := fake.NewSimpleClientset()
 	indexer := &resourceIndexerImpl{
 		store: make(map[Resource]*metav1.APIResource),
 	}
-	grouplist, err := i.ServerGroups()
-	if err != nil {
-		panic(err)
-	}
-	for _, g := range grouplist.Groups {
-		for _, v := range g.Versions {
-			rs, err := i.ServerResourcesForGroupVersion(v.GroupVersion)
-			if err != nil {
-				panic(err)
-			}
-			for _, r := range rs.APIResources {
-				r := r
-				for _, supportedResource := range GetResources() {
-					supportedResource := supportedResource
-					if strings.ToLower(string(supportedResource)) == r.Name {
-						r.Group = g.Name
-						r.Version = v.Version
-						indexer.store[supportedResource] = &r
-					}
+	for gvk := range scheme.Scheme.AllKnownTypes() {
+		for _, supportedResource := range GetResources() {
+			pluralGvr, singularGvr := meta.UnsafeGuessKindToResource(gvk)
+			if pluralGvr.Resource == strings.ToLower(string(supportedResource)) {
+				gvkGroup := strings.SplitN(gvk.Group, ".", 2)[0]
+				if gvkGroup == "" {
+					gvkGroup = "core"
 				}
+				gvMethod := reflect.ValueOf(i).MethodByName(
+					capitalizeFirstLetter(gvkGroup) + capitalizeFirstLetter(gvk.Version),
+				).Call([]reflect.Value{})[0]
+				namespaced := gvMethod.MethodByName(string(supportedResource)).Type().NumIn() != 0
+				apiRs := metav1.APIResource{
+					Name:         pluralGvr.Resource,
+					SingularName: singularGvr.Resource,
+					Namespaced:   namespaced,
+					Group:        gvk.Group,
+					Version:      gvk.Version,
+					Kind:         gvk.Kind,
+				}
+				indexer.store[supportedResource] = &apiRs
+				fmt.Printf("%#v\n", apiRs)
 			}
 		}
 	}
@@ -55,13 +66,17 @@ func initIndexer(i discovery.DiscoveryInterface) {
 	indexerInitialized = true
 }
 
+func capitalizeFirstLetter(s string) string {
+	if len(s) > 1 {
+		return strings.ToUpper(string(s[0])) + string(s[1:])
+	}
+	return strings.ToUpper(s)
+}
+
 // getResouceIndexerInstance blocks until initIndexer is invoked
 func GetResouceIndexerInstance() (indexer ResourceIndexer) {
 	// Singleton
-	for !indexerInitialized {
-	}
-	indexer = indexerInstance
-	return
+	return indexerInstance
 }
 
 func (indexer *resourceIndexerImpl) IsNamespaced(resource Resource) bool {

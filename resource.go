@@ -51,7 +51,7 @@ const (
 	// PodPreset Resource = "podpresets"
 
 	// network
-	NetworkPolicy Resource = "NetworkPolicies"
+	// NetworkPolicy Resource = "NetworkPolicies"
 
 	// autoscaling
 	HorizontalPodAutoscaler Resource = "HorizontalPodAutoscalers"
@@ -122,7 +122,7 @@ func GetResources() []Resource {
 		StorageClass,
 
 		// network
-		NetworkPolicy,
+		// NetworkPolicy,
 
 		// autoscaling
 		HorizontalPodAutoscaler,
