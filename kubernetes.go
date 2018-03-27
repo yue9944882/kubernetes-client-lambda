@@ -135,11 +135,13 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 			tmpObj.GetObjectKind().SetGroupVersionKind(gvk)
 			return castUnstructuredToObject(gvk, tmpObj)
 		},
-		listFunc: func(namespace string) ([]runtime.Object, error) {
+		listFunc: func(namespace string, selector labels.Selector) ([]runtime.Object, error) {
 			if exec.informer != nil {
-				return exec.informer.Lister().ByNamespace(namespace).List(labels.Everything())
+				return exec.informer.Lister().ByNamespace(namespace).List(selector)
 			}
-			tmpObjList, err := exec.clientInterface.Resource(api, namespace).List(metav1.ListOptions{})
+			tmpObjList, err := exec.clientInterface.Resource(api, namespace).List(metav1.ListOptions{
+				LabelSelector: selector.String(),
+			})
 			if err != nil {
 				return nil, err
 			}

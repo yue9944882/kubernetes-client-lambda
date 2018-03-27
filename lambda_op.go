@@ -6,6 +6,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -76,7 +77,7 @@ func (lambda *Lambda) Each(function Function) error {
 //********************************************************
 
 // List lists all items indexed in the local cache
-func (lambda *Lambda) List() *Lambda {
+func (lambda *Lambda) ListWithLabelSelector(selector labels.Selector) *Lambda {
 	var wg sync.WaitGroup
 	ch := make(chan runtime.Object)
 	go func() {
@@ -84,7 +85,7 @@ func (lambda *Lambda) List() *Lambda {
 			namespace := namespace
 			wg.Add(1)
 			go func() {
-				objs, err := lambda.listFunc(namespace)
+				objs, err := lambda.listFunc(namespace, selector)
 				if err != nil {
 					panic(err)
 				}
@@ -99,6 +100,10 @@ func (lambda *Lambda) List() *Lambda {
 	}()
 	lambda.val = ch
 	return lambda
+}
+
+func (lambda *Lambda) List() *Lambda {
+	return lambda.ListWithLabelSelector(labels.Everything())
 }
 
 // Create creates every element remains in lambda collection
