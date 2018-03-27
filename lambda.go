@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 )
@@ -75,7 +76,7 @@ func callProducer(f interface{}) interface{} {
 // via lambda operation method which is defined in lambda_operation.go
 type Lambda struct {
 	getFunc    func(namespace, name string) (runtime.Object, error)
-	listFunc   func(namespace string) ([]runtime.Object, error)
+	listFunc   func(namespace string, selector labels.Selector) ([]runtime.Object, error)
 	createFunc func(runtime.Object) error
 	updateFunc func(runtime.Object) error
 	deleteFunc func(runtime.Object) error
