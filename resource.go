@@ -128,3 +128,11 @@ func GetResources() []Resource {
 		HorizontalPodAutoscaler,
 	}
 }
+
+func (r Resource) GetKind() string {
+	return indexerInstance.GetGroupVersionKind(r).Kind
+}
+
+func (r Resource) GetResource() string {
+	return indexerInstance.GetGroupVersionResource(r).Resource
+}
