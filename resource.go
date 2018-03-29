@@ -136,3 +136,7 @@ func (r Resource) GetKind() string {
 func (r Resource) GetResource() string {
 	return indexerInstance.GetGroupVersionResource(r).Resource
 }
+
+func (r Resource) GetAPIVersion() string {
+	return indexerInstance.GetGroupVersionKind(r).GroupVersion().String()
+}
