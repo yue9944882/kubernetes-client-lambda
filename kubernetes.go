@@ -2,6 +2,7 @@ package lambda
 
 import (
 	"os"
+	"regexp"
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -18,8 +19,34 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+var (
+	versionParseRegexp = regexp.MustCompile(`v(\d+)((alpha|beta)(\d+))?`)
+)
+
+type Version string
+
+func (v Version) GetNumericVersion() string {
+	matches := versionParseRegexp.FindStringSubmatch(string(v))
+	if len(matches) < 2 {
+		return ""
+	}
+	return matches[1]
+}
+
+func (v Version) GetSuffix() string {
+	// e.g. v1beta1,
+	matches := versionParseRegexp.FindStringSubmatch(string(v))
+	if len(matches) < 5 {
+		return ""
+	}
+	return matches[3] + matches[4]
+}
+
 // Resource is kubernetes resource enumeration hiding api version
-type Resource string
+type Resource struct {
+	Name    string
+	Version string
+}
 
 type kubernetesExecutable struct {
 	Rs              Resource

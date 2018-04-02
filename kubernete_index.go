@@ -79,7 +79,7 @@ func initIndexer() {
 		gvk := gvk
 		for _, supportedResource := range GetResources() {
 			pluralGvr, singularGvr := meta.UnsafeGuessKindToResource(gvk)
-			if pluralGvr.Resource == strings.ToLower(string(supportedResource)) {
+			if pluralGvr.Resource == strings.ToLower(string(supportedResource.Name)) && supportedResource.Version == Version(pluralGvr.Version).GetNumericVersion() {
 				if !indexedMap[supportedResource] {
 					gvkGroup := strings.SplitN(gvk.Group, ".", 2)[0]
 					if gvkGroup == "" {
@@ -88,7 +88,7 @@ func initIndexer() {
 					gvMethod := reflect.ValueOf(i).MethodByName(
 						capitalizeFirstLetter(gvkGroup) + capitalizeFirstLetter(gvk.Version),
 					).Call([]reflect.Value{})[0]
-					namespaced := gvMethod.MethodByName(string(supportedResource)).Type().NumIn() != 0
+					namespaced := gvMethod.MethodByName(string(supportedResource.Name)).Type().NumIn() != 0
 					apiRs := metav1.APIResource{
 						Name:         pluralGvr.Resource,
 						SingularName: singularGvr.Resource,
