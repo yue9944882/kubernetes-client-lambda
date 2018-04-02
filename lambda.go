@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/labels"
@@ -320,4 +321,24 @@ func (lambda *Lambda) HasLabelKey(key string) *Lambda {
 		}
 		return accessor.GetLabels()[key] != ""
 	})
+}
+
+func (lambda *Lambda) LatestCreated() *Lambda {
+	l, ch := lambda.clone()
+	go func() {
+		defer close(ch)
+		var latestObj runtime.Object
+		var latestTimestamp *time.Time
+		for item := range lambda.val {
+			item := item
+			accessor, _ := meta.Accessor(item)
+			if latestTimestamp == nil || accessor.GetCreationTimestamp().Time.After(*latestTimestamp) {
+				t := accessor.GetCreationTimestamp().Time
+				latestTimestamp = &t
+				latestObj = item
+			}
+		}
+		ch <- latestObj
+	}()
+	return l
 }
