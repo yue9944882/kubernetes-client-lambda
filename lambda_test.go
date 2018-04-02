@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -30,11 +29,10 @@ func TestLatestObject(t *testing.T) {
 			return cm
 		}).Create()
 	assert.NoError(t, err, "creation failed")
-	mock.Type(ConfigMap).
+	cm2, err := mock.Type(ConfigMap).
 		InNamespace("foons").
 		List().
 		LatestCreated().
-		Each(func(cm *corev1.ConfigMap) {
-			assert.Equal(t, "testcm2", cm.Name, "name wrong")
-		})
+		Element()
+	assert.Equal(t, "testcm2", cm2.(*corev1.ConfigMap).Name, "configmap name wrong")
 }

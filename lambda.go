@@ -147,6 +147,53 @@ func (lambda *Lambda) Collect() *Lambda {
 	return l
 }
 
+// LatestCreated filters out the latest created object
+func (lambda *Lambda) LatestCreated() *Lambda {
+	l, ch := lambda.clone()
+	go func() {
+		defer close(ch)
+		var latestObj runtime.Object
+		var latestTimestamp *time.Time
+		for item := range lambda.val {
+			item := item
+			accessor, _ := meta.Accessor(item)
+			if latestTimestamp == nil || accessor.GetCreationTimestamp().Time.After(*latestTimestamp) {
+				t := accessor.GetCreationTimestamp().Time
+				latestTimestamp = &t
+				latestObj = item
+			}
+		}
+		ch <- latestObj
+	}()
+	return l
+}
+
+// Element returns a single element. Note that if multiple elements
+// exists in the lambda pipeline, a random object may be returned.
+func (lambda *Lambda) Element() (runtime.Object, error) {
+	var element runtime.Object
+	for item := range lambda.val {
+		element = item
+	}
+	if element == nil {
+		return nil, fmt.Errorf("no element found")
+	}
+	return element, nil
+}
+
+// Elements returns all elements from the lambda pipeline.
+func (lambda *Lambda) Elements() ([]runtime.Object, error) {
+	var elements []runtime.Object
+	for item := range lambda.val {
+		item := item
+		elements = append(elements, item)
+	}
+	if len(elements) == 0 {
+		return nil, fmt.Errorf("no elements found")
+	}
+	return elements, nil
+}
+
 //********************************************************
 // Lambda using Predicate
 //********************************************************
@@ -321,24 +368,4 @@ func (lambda *Lambda) HasLabelKey(key string) *Lambda {
 		}
 		return accessor.GetLabels()[key] != ""
 	})
-}
-
-func (lambda *Lambda) LatestCreated() *Lambda {
-	l, ch := lambda.clone()
-	go func() {
-		defer close(ch)
-		var latestObj runtime.Object
-		var latestTimestamp *time.Time
-		for item := range lambda.val {
-			item := item
-			accessor, _ := meta.Accessor(item)
-			if latestTimestamp == nil || accessor.GetCreationTimestamp().Time.After(*latestTimestamp) {
-				t := accessor.GetCreationTimestamp().Time
-				latestTimestamp = &t
-				latestObj = item
-			}
-		}
-		ch <- latestObj
-	}()
-	return l
 }
