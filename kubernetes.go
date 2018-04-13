@@ -55,7 +55,7 @@ type kubernetesExecutable struct {
 
 // KubernetesClientLambda provides manipulation interface for resources
 type KubernetesClientLambda interface {
-	Type(Resource) KubernetesLambda
+	Type(Resource) *kubernetesExecutable
 }
 
 type kubernetesClientLambdaImpl struct {
@@ -63,7 +63,7 @@ type kubernetesClientLambdaImpl struct {
 	clientPool      dynamic.ClientPool
 }
 
-func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
+func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) *kubernetesExecutable {
 	gvr := GetResouceIndexerInstance().GetGroupVersionResource(rs)
 	i, err := kcl.clientPool.ClientForGroupVersionResource(gvr)
 	if err != nil {
@@ -87,14 +87,6 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 		exec.informer = informer
 	}
 	return exec
-}
-
-// KubernetesLambda provides access entry function for kubernetes
-type KubernetesLambda interface {
-
-	// InNamespace list the resources in the namespace with a default pager
-	// and put them into lambda pipeline.
-	InNamespace(namespaces ...string) *Lambda
 }
 
 func getKCLFromConfig(config *rest.Config) *kubernetesClientLambdaImpl {
@@ -208,11 +200,6 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 	return l
 }
 
-/*
-func (exec *kubernetesExecutable) WatchNamespace(namespace string) KubernetesWatch {
-	exec.Namespace = namespace
-	return &kubernetesWatchable{
-		exec: exec,
-	}
+func (exec *kubernetesExecutable) AddWatchHandler(handler cache.ResourceEventHandler) {
+	exec.informer.Informer().AddEventHandler(handler)
 }
-*/
