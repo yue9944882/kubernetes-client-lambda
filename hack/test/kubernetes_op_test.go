@@ -9,6 +9,7 @@ import (
 	kcl "github.com/yue9944882/kubernetes-client-lambda"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sync"
 )
 
 func TestSimpleConfigMapManipulation(t *testing.T) {
@@ -269,4 +270,56 @@ func TestMultiNamespaceList(t *testing.T) {
 
 	}
 	testFunc(kcl.Mock())
+}
+
+func TestWatchResource(t *testing.T) {
+	mockKCL := kcl.Mock()
+	countLock := &sync.Mutex{}
+
+	addCount := 0
+	mockKCL.Type(kcl.ConfigMap).OnAdd(func(obj interface{}) {
+		countLock.Lock()
+		addCount++
+		countLock.Unlock()
+	})
+	testFunc := func(kclInterface kcl.KubernetesClientLambda) {
+		testConfigMapName := "test-abc"
+		created, err := kclInterface.Type(kcl.ConfigMap).
+			InNamespace(metav1.NamespaceDefault).
+			Add(
+				func() *corev1.ConfigMap {
+					cm := &corev1.ConfigMap{}
+					cm.Name = testConfigMapName + "1"
+					cm.Kind = "ConfigMap"
+					cm.Namespace = "default"
+					return cm
+				},
+			).
+			Add(
+				func() *corev1.ConfigMap {
+					cm := &corev1.ConfigMap{}
+					cm.Name = testConfigMapName + "2"
+					cm.Kind = "ConfigMap"
+					cm.Namespace = "default"
+					return cm
+				},
+			).
+			Create()
+		assert.Equal(t, true, created, "not created")
+		assert.NoError(t, err, "some error")
+		time.Sleep(time.Second)
+		count := 0
+		kclInterface.Type(kcl.ConfigMap).
+			InNamespace("default").
+			List().
+			Each(func(cm *corev1.ConfigMap) {
+				count++
+			})
+		assert.Equal(t, 2, count, "count mismatch")
+	}
+	testFunc(mockKCL)
+	countLock.Lock()
+	assert.Equal(t, 2, addCount, "add count mismatched")
+	countLock.Unlock()
+	testFunc(kcl.OutOfClusterDefault())
 }

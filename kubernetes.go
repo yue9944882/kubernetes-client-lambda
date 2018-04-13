@@ -200,6 +200,19 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 	return l
 }
 
-func (exec *kubernetesExecutable) AddWatchHandler(handler cache.ResourceEventHandler) {
-	exec.informer.Informer().AddEventHandler(handler)
+func (exec *kubernetesExecutable) OnAdd(f func(interface{})) {
+	exec.informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: f,
+	})
+}
+
+func (exec *kubernetesExecutable) OnUpdate(f func(interface{}, interface{})) {
+	exec.informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		UpdateFunc: f,
+	})
+}
+func (exec *kubernetesExecutable) OnDelete(f func(interface{})) {
+	exec.informer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		DeleteFunc: f,
+	})
 }
