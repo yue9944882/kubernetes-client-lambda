@@ -12,6 +12,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	dynamic_fake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/testing"
@@ -20,9 +21,10 @@ import (
 
 // the mock KubernetesClient is statusful and if you want to reset its status then use MockReset
 func Mock(objects ...runtime.Object) KubernetesClientLambda {
-	fakePool, _ := NewFakes(objects...)
+	fakePool, fakeClient := NewFakes(objects...)
 	return &kubernetesClientLambdaImpl{
-		clientPool: fakePool,
+		clientPool:      fakePool,
+		informerFactory: informers.NewSharedInformerFactory(fakeClient, 0),
 	}
 }
 
@@ -172,6 +174,22 @@ func (c *FakeClient) ParameterCodec(parameterCodec runtime.ParameterCodec) dynam
 // FakeResourceClient is a fake implementation of dynamic.ResourceInterface
 type FakeResourceClient struct {
 	*dynamic_fake.FakeResourceClient
+}
+
+// Get gets the resource with the specified name.
+func (c *FakeResourceClient) Get(name string, opts metav1.GetOptions) (*unstructured.Unstructured, error) {
+	obj, err := c.Fake.
+		Invokes(testing.NewGetAction(c.Resource, c.Namespace, name), &unstructured.Unstructured{})
+
+	if obj == nil {
+		return nil, err
+	}
+
+	unstructuredObj, err := castObjectToUnstructured(obj)
+	if err != nil {
+		return nil, err
+	}
+	return unstructuredObj, err
 }
 
 func (c *FakeResourceClient) List(opts metav1.ListOptions) (runtime.Object, error) {

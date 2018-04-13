@@ -7,13 +7,11 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/clientcmd"
@@ -139,7 +137,6 @@ func OutOfClusterInContext(context string) KubernetesClientLambda {
 func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 	rs := exec.Rs
 	gvk := GetResouceIndexerInstance().GetGroupVersionKind(rs)
-	api := GetResouceIndexerInstance().GetAPIResource(rs)
 
 	exec.namespaces = namespaces
 
@@ -154,52 +151,10 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 		namespaces: exec.namespaces,
 		val:        ch,
 		getFunc: func(namespace, name string) (runtime.Object, error) {
-			if exec.informer != nil {
-				return exec.informer.Lister().ByNamespace(namespace).Get(name)
-			}
-			tmpObj, err := exec.clientInterface.Resource(api, namespace).Get(name, metav1.GetOptions{})
-			if err != nil {
-				return nil, err
-			}
-			tmpObj.GetObjectKind().SetGroupVersionKind(gvk)
-			return castUnstructuredToObject(gvk, tmpObj)
+			return exec.informer.Lister().ByNamespace(namespace).Get(name)
 		},
 		listFunc: func(namespace string, selector labels.Selector) ([]runtime.Object, error) {
-			if exec.informer != nil {
-				return exec.informer.Lister().ByNamespace(namespace).List(selector)
-			}
-			tmpObjList, err := exec.clientInterface.Resource(api, namespace).List(metav1.ListOptions{
-				LabelSelector: selector.String(),
-			})
-			if err != nil {
-				return nil, err
-			}
-			tmpObjs, err := meta.ExtractList(tmpObjList)
-			if err != nil {
-				return nil, err
-			}
-			retObjs := []runtime.Object{}
-			for _, tmpObj := range tmpObjs {
-				tmpObj.GetObjectKind().SetGroupVersionKind(gvk)
-				if unstrct, ok := tmpObj.(*unstructured.Unstructured); ok {
-					obj, err := castUnstructuredToObject(gvk, unstrct)
-					if err != nil {
-						panic(err)
-					}
-					retObjs = append(retObjs, obj)
-				} else {
-					obj, err := scheme.Scheme.New(gvk)
-					if err != nil {
-						panic(err)
-					}
-					tmpObj.GetObjectKind().SetGroupVersionKind(gvk)
-					if err := scheme.Scheme.Convert(tmpObj, obj, nil); err != nil {
-						return nil, err
-					}
-					retObjs = append(retObjs, obj)
-				}
-			}
-			return retObjs, nil
+			return exec.informer.Lister().ByNamespace(namespace).List(selector)
 		},
 		createFunc: func(object runtime.Object) error {
 			api := GetResouceIndexerInstance().GetAPIResource(rs)
@@ -215,6 +170,7 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 			if _, err := exec.clientInterface.Resource(api, accessor.GetNamespace()).Create(tmpObj); err != nil {
 				return err
 			}
+			cache.WaitForCacheSync(make(chan struct{}), exec.informer.Informer().HasSynced)
 			return nil
 		},
 		updateFunc: func(object runtime.Object) error {
@@ -231,6 +187,7 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 			if _, err := exec.clientInterface.Resource(api, accessor.GetNamespace()).Update(tmpObj); err != nil {
 				return err
 			}
+			cache.WaitForCacheSync(make(chan struct{}), exec.informer.Informer().HasSynced)
 			return nil
 		},
 		deleteFunc: func(object runtime.Object) error {
@@ -242,6 +199,7 @@ func (exec *kubernetesExecutable) InNamespace(namespaces ...string) *Lambda {
 			if err := exec.clientInterface.Resource(api, accessor.GetNamespace()).Delete(accessor.GetName(), &metav1.DeleteOptions{}); err != nil {
 				return err
 			}
+			cache.WaitForCacheSync(make(chan struct{}), exec.informer.Informer().HasSynced)
 			return nil
 		},
 	}

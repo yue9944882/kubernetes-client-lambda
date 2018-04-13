@@ -83,6 +83,7 @@ func TestFakeClientInformer(t *testing.T) {
 	cmIn2.Kind = ConfigMap.GetKind()
 	cmIn2.APIVersion = ConfigMap.GetAPIVersion()
 	_, err = fakeClient.Core().ConfigMaps("foo1").Create(cmIn2)
+	fakeFactory.WaitForCacheSync(make(chan struct{}))
 	assert.NoError(t, err, "some error")
 	cmOut2, err := fakeFactory.Core().V1().ConfigMaps().Lister().ConfigMaps("foo1").Get("foo2")
 	assert.Equal(t, cmIn2, cmOut2, "configmap not equal")
