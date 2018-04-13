@@ -71,6 +71,11 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 	if err != nil {
 		panic(err)
 	}
+
+	exec := &kubernetesExecutable{
+		Rs:              rs,
+		clientInterface: i,
+	}
 	if kcl.informerFactory != nil {
 		informer, err := kcl.informerFactory.ForResource(gvr)
 		if err != nil {
@@ -81,12 +86,9 @@ func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) KubernetesLambda {
 			// TODO: set timeout for waiting cache sync
 			cache.WaitForCacheSync(make(chan struct{}), informer.Informer().HasSynced)
 		}
+		exec.informer = informer
 	}
-
-	return &kubernetesExecutable{
-		Rs:              rs,
-		clientInterface: i,
-	}
+	return exec
 }
 
 // KubernetesLambda provides access entry function for kubernetes
