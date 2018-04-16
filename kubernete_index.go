@@ -80,7 +80,7 @@ func initIndexer() {
 		for _, supportedResource := range GetResources() {
 			pluralGvr, singularGvr := meta.UnsafeGuessKindToResource(gvk)
 			if pluralGvr.Resource == strings.ToLower(string(supportedResource.Name)) &&
-				(supportedResource.Version == "" || supportedResource.Version == Version(pluralGvr.Version).GetNumericVersion()) {
+				(supportedResource.Version == "" || supportedResource.Version == pluralGvr.Version) {
 				if !indexedMap[supportedResource] {
 					gvkGroup := strings.SplitN(gvk.Group, ".", 2)[0]
 					if gvkGroup == "" {
