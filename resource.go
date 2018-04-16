@@ -24,7 +24,7 @@ var (
 
 	// extensions
 	Ingress           = Resource{"Ingresses", ""}
-	ReplicaSet        = Resource{"ReplicaSets", ""}
+	ReplicaSet        = Resource{"ReplicaSets", "v1beta1"}
 	Deployment        = Resource{"Deployments", ""}
 	DaemonSet         = Resource{"DaemonSets", ""}
 	PodSecurityPolicy = Resource{"PodSecurityPolicies", ""}
@@ -51,8 +51,8 @@ var (
 	// network
 
 	// autoscaling
-	HorizontalPodAutoscalerV1 = Resource{"HorizontalPodAutoscalers", "1"}
-	HorizontalPodAutoscalerV2 = Resource{"HorizontalPodAutoscalers", "2"}
+	HorizontalPodAutoscalerV1 = Resource{"HorizontalPodAutoscalers", "v1"}
+	HorizontalPodAutoscalerV2 = Resource{"HorizontalPodAutoscalers", "v2beta1"}
 
 	// authentication
 
