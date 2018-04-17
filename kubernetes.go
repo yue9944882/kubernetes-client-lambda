@@ -56,11 +56,17 @@ type kubernetesExecutable struct {
 // KubernetesClientLambda provides manipulation interface for resources
 type KubernetesClientLambda interface {
 	Type(Resource) *kubernetesExecutable
+	GetRestConfig() *rest.Config
 }
 
 type kubernetesClientLambdaImpl struct {
 	informerFactory informers.SharedInformerFactory
 	clientPool      dynamic.ClientPool
+	restConfig      *rest.Config
+}
+
+func (kcl *kubernetesClientLambdaImpl) GetRestConfig() *rest.Config {
+	return kcl.restConfig
 }
 
 func (kcl *kubernetesClientLambdaImpl) Type(rs Resource) *kubernetesExecutable {
@@ -99,6 +105,7 @@ func getKCLFromConfig(config *rest.Config) *kubernetesClientLambdaImpl {
 	return &kubernetesClientLambdaImpl{
 		informerFactory: factory,
 		clientPool:      dynamic.NewDynamicClientPool(config),
+		restConfig:      config,
 	}
 }
 
